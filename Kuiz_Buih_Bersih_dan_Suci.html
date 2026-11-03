@@ -1,0 +1,3797 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kuiz Tangkap Buih: Bersih dan Suci (Konsep Bersuci)</title>
+  <!-- MediaPipe Hands & Camera Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --primary: #059669;
+      --primary-dark: #064e3b;
+      --accent-gold: #f59e0b;
+      --accent-cyan: #38bdf8;
+      --accent-pink: #ec4899;
+      --bg-dark: #0f172a;
+      --text-light: #f8fafc;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+      color: var(--text-light);
+      min-height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background: #000;
+    }
+
+    #webcam-video {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #game-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      cursor: crosshair;
+    }
+
+    /* Top HUD */
+    #hud-top {
+      position: absolute;
+      top: 14px;
+      left: 18px;
+      right: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .hud-left-group, .hud-right-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .hud-card {
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 14px;
+      padding: 8px 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hud-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #94a3b8;
+    }
+
+    .hud-val {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    #player-badge {
+      max-width: 190px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #38bdf8;
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
+
+    #lives-val {
+      color: #ef4444;
+      letter-spacing: 2px;
+      font-size: 1.2rem;
+    }
+
+    #score-val { color: var(--accent-gold); }
+    #timer-val { color: var(--accent-cyan); font-variant-numeric: tabular-nums; }
+    #combo-val { color: var(--accent-pink); }
+
+    .hud-btn {
+      background: rgba(15, 23, 42, 0.88);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      color: white;
+      border-radius: 12px;
+      padding: 8px 14px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      backdrop-filter: blur(8px);
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .hud-btn:hover {
+      background: rgba(255, 255, 255, 0.22);
+      transform: translateY(-2px);
+    }
+
+    .hud-btn.btn-gold {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.4));
+      border-color: rgba(245, 158, 11, 0.6);
+      color: #fbbf24;
+    }
+
+    .hud-btn.btn-fullscreen {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(14, 165, 233, 0.35));
+      border-color: rgba(56, 189, 248, 0.6);
+      color: #38bdf8;
+    }
+
+    .btn-fullscreen-link {
+      color: #38bdf8 !important;
+      border-color: rgba(56, 189, 248, 0.4) !important;
+    }
+
+    .btn-fullscreen-link:hover {
+      background: rgba(56, 189, 248, 0.15) !important;
+      border-color: #38bdf8 !important;
+    }
+
+    /* Question Banner */
+    #question-banner {
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 94%;
+      max-width: 1050px;
+      background: linear-gradient(135deg, rgba(6, 78, 59, 0.96), rgba(15, 23, 42, 0.97));
+      border: 2px solid rgba(52, 211, 153, 0.55);
+      border-radius: 20px;
+      padding: 16px 28px;
+      text-align: center;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7), 0 0 30px rgba(16, 185, 129, 0.3);
+      z-index: 10;
+      backdrop-filter: blur(14px);
+      pointer-events: none;
+    }
+
+    .q-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    #question-category {
+      font-size: 0.92rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--accent-gold);
+    }
+
+    .tp-badge-tag {
+      display: inline-block;
+      padding: 4px 14px;
+      border-radius: 20px;
+      font-size: 0.88rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      background: rgba(56, 189, 248, 0.25);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+    }
+
+    #question-text {
+      font-size: clamp(1.4rem, 2.1vw, 1.75rem);
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.38;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 0, 0, 0.6);
+      letter-spacing: 0.3px;
+    }
+
+    /* Countdown Bar */
+    #question-timer-bar-wrap {
+      width: 100%;
+      height: 7px;
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    #question-timer-bar {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #10b981, #38bdf8);
+      transition: width 1s linear, background 0.3s ease;
+    }
+
+    #question-timer-bar.danger {
+      background: linear-gradient(90deg, #ef4444, #f59e0b);
+    }
+
+    /* Gesture Status */
+    #gesture-status {
+      position: absolute;
+      bottom: 18px;
+      left: 18px;
+      background: rgba(15, 23, 42, 0.9);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 30px;
+      padding: 9px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      z-index: 10;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #94a3b8;
+      box-shadow: 0 0 8px #94a3b8;
+      transition: all 0.2s ease;
+    }
+
+    .status-dot.dot-ready { background: #10b981; box-shadow: 0 0 14px #10b981; }
+    .status-dot.dot-hand { background: #38bdf8; box-shadow: 0 0 16px #38bdf8; }
+    .status-dot.dot-pinch { background: #f59e0b; box-shadow: 0 0 20px #f59e0b; transform: scale(1.35); }
+
+    #pinch-meter-container {
+      width: 75px;
+      height: 7px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-left: 4px;
+    }
+
+    #pinch-meter-bar {
+      height: 100%;
+      width: 0%;
+      background: #38bdf8;
+      transition: width 0.1s ease, background 0.2s ease;
+    }
+
+    /* Feedback Popups */
+    #feedback-popup {
+      position: absolute;
+      top: 48%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0);
+      padding: 20px 42px;
+      border-radius: 24px;
+      font-size: 2.2rem;
+      font-weight: 900;
+      z-index: 25;
+      pointer-events: none;
+      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s ease;
+      opacity: 0;
+      text-shadow: 0 3px 10px rgba(0, 0, 0, 0.6);
+      text-align: center;
+    }
+
+    #feedback-popup.correct {
+      background: rgba(5, 150, 105, 0.95);
+      border: 3px solid #6ee7b7;
+      color: #ffffff;
+      box-shadow: 0 0 50px rgba(16, 185, 129, 0.85);
+    }
+
+    #feedback-popup.wrong {
+      background: rgba(220, 38, 38, 0.95);
+      border: 3px solid #fca5a5;
+      color: #ffffff;
+      box-shadow: 0 0 50px rgba(239, 68, 68, 0.85);
+    }
+
+    #feedback-popup.show {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+
+    /* Modals */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.93);
+      backdrop-filter: blur(20px);
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .modal-box {
+      background: linear-gradient(145deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+      border: 2px solid rgba(16, 185, 129, 0.45);
+      border-radius: 26px;
+      padding: 24px 30px;
+      max-width: 800px;
+      width: 95%;
+      max-height: 94vh;
+      overflow-y: auto;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(16, 185, 129, 0.2);
+      animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.85); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .badge-topic {
+      display: inline-block;
+      padding: 5px 15px;
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.35);
+      border-radius: 30px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    h1.game-title {
+      font-size: 1.95rem;
+      font-weight: 900;
+      background: linear-gradient(to right, #34d399, #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    p.game-desc {
+      font-size: 0.94rem;
+      color: #cbd5e1;
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+
+    /* Mode Selector (Individu vs Kumpulan) */
+    .mode-section {
+      background: rgba(99, 102, 241, 0.09);
+      border: 1.5px solid rgba(129, 140, 248, 0.45);
+      border-radius: 18px;
+      padding: 13px 18px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    .mode-option-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .mode-opt-btn {
+      background: rgba(15, 23, 42, 0.78);
+      border: 2px solid rgba(255, 255, 255, 0.18);
+      color: #cbd5e1;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+      text-align: left;
+    }
+
+    .mode-opt-btn:hover {
+      border-color: rgba(129, 140, 248, 0.65);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    .mode-opt-btn.active {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.35), rgba(79, 70, 229, 0.45));
+      border-color: #818cf8;
+      color: #ffffff;
+      box-shadow: 0 0 18px rgba(99, 102, 241, 0.4);
+    }
+
+    .mode-opt-sub {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    .mode-opt-btn.active .mode-opt-sub {
+      color: #c7d2fe;
+    }
+
+    /* Group Tournament Section */
+    .group-section {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1.5px solid rgba(251, 191, 36, 0.4);
+      border-radius: 18px;
+      padding: 16px 20px;
+      margin-bottom: 18px;
+      text-align: left;
+    }
+
+    .group-members-card {
+      margin-top: 12px;
+      background: rgba(15, 23, 42, 0.65);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+
+    .group-members-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #fbbf24;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .group-members-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px 12px;
+    }
+
+    .member-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 0.75rem;
+      color: #e2e8f0;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tournament-banner-note {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.12);
+      border-left: 3px solid #fbbf24;
+      padding: 7px 10px;
+      border-radius: 6px;
+      line-height: 1.4;
+    }
+
+    .topic-section {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1.5px solid rgba(251, 191, 36, 0.38);
+      border-radius: 18px;
+      padding: 14px 20px;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    .topic-option-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .topic-opt-btn {
+      background: rgba(15, 23, 42, 0.78);
+      border: 2px solid rgba(255, 255, 255, 0.18);
+      color: #cbd5e1;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-size: 0.88rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+      text-align: left;
+    }
+
+    .topic-opt-btn:hover {
+      border-color: rgba(251, 191, 36, 0.55);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    .topic-opt-btn.active {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.28), rgba(217, 119, 6, 0.38));
+      border-color: #fbbf24;
+      color: #ffffff;
+      box-shadow: 0 0 18px rgba(245, 158, 11, 0.35);
+    }
+
+    .topic-opt-sub {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+
+    .topic-opt-btn.active .topic-opt-sub {
+      color: #fde68a;
+    }
+
+    .profile-section {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      border-radius: 18px;
+      padding: 16px 20px;
+      margin-bottom: 18px;
+      text-align: left;
+    }
+
+
+
+    .profile-label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      color: #fbbf24;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .profile-dropdown {
+      width: 100%;
+      background: #0f172a;
+      color: #ffffff;
+      border: 2px solid rgba(56, 189, 248, 0.5);
+      border-radius: 12px;
+      padding: 13px 16px;
+      font-size: 1.02rem;
+      font-weight: 700;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .profile-dropdown:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.4);
+    }
+
+    .profile-dropdown option {
+      background: #1e293b;
+      color: #fff;
+      padding: 10px;
+    }
+
+    .profile-option-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .profile-opt-btn {
+      background: rgba(15, 23, 42, 0.75);
+      border: 2px solid rgba(255, 255, 255, 0.18);
+      color: #cbd5e1;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 0.88rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .profile-opt-btn:hover {
+      border-color: rgba(56, 189, 248, 0.5);
+      color: #fff;
+    }
+
+    .profile-opt-btn.active {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.4));
+      border-color: #34d399;
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(16, 185, 129, 0.35);
+    }
+
+    .profile-opt-btn.opt-custom.active {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(2, 132, 199, 0.4));
+      border-color: #38bdf8;
+      color: #ffffff;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
+    }
+
+    .profile-edit-wrap {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.18);
+    }
+
+    .profile-input-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+
+    .profile-text-input {
+      flex: 1;
+      min-width: 210px;
+      background: #0f172a;
+      color: #ffffff;
+      border: 2px solid rgba(251, 191, 36, 0.55);
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      outline: none;
+      transition: all 0.2s;
+      user-select: text !important;
+      -webkit-user-select: text !important;
+    }
+
+    .profile-text-input:focus {
+      border-color: #fbbf24;
+      box-shadow: 0 0 16px rgba(251, 191, 36, 0.35);
+    }
+
+    .profile-text-input::placeholder {
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .btn-prof-action {
+      border: none;
+      border-radius: 11px;
+      padding: 10px 13px;
+      font-size: 0.82rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .btn-prof-add {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    .btn-prof-add:hover {
+      transform: translateY(-2px);
+      background: linear-gradient(135deg, #34d399, #10b981);
+    }
+
+    .btn-prof-edit {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1.5px solid rgba(245, 158, 11, 0.6);
+      color: #fbbf24;
+    }
+
+    .btn-prof-edit:hover {
+      background: rgba(245, 158, 11, 0.35);
+      color: #fff;
+    }
+
+    .btn-prof-del {
+      background: rgba(239, 68, 68, 0.18);
+      border: 1.5px solid rgba(239, 68, 68, 0.5);
+      color: #f87171;
+    }
+
+    .btn-prof-del:hover {
+      background: rgba(239, 68, 68, 0.35);
+      color: #fff;
+    }
+
+    .btn-prof-reset {
+      background: rgba(168, 85, 247, 0.2);
+      border: 1.5px solid rgba(168, 85, 247, 0.6);
+      color: #c084fc;
+    }
+
+    .btn-prof-reset:hover {
+      background: rgba(168, 85, 247, 0.38);
+      color: #fff;
+    }
+
+    .profile-status-msg {
+      margin-top: 7px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #34d399;
+      min-height: 18px;
+    }
+
+    .sb-filter-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .sb-tab-btn {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1.5px solid rgba(255, 255, 255, 0.2);
+      color: #cbd5e1;
+      padding: 7px 15px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sb-tab-btn.active {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: #fbbf24;
+      color: #fbbf24;
+      box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
+    }
+
+    .rules-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 22px;
+      text-align: center;
+    }
+
+    .rule-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      padding: 12px 8px;
+    }
+
+    .rule-icon { font-size: 1.8rem; margin-bottom: 4px; }
+    .rule-title { font-size: 0.85rem; font-weight: 800; color: #f1f5f9; }
+    .rule-desc { font-size: 0.72rem; color: #94a3b8; line-height: 1.3; }
+
+    .btn-main {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: white;
+      font-size: 1.2rem;
+      font-weight: 800;
+      padding: 15px 44px;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.45);
+      transition: all 0.25s;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-main:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 14px 34px rgba(16, 185, 129, 0.65);
+      background: linear-gradient(135deg, #10b981, #34d399);
+    }
+
+    .action-links-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .btn-link-action {
+      background: transparent;
+      color: #94a3b8;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      padding: 8px 18px;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-link-action:hover {
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-link-action.btn-gold-link {
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    /* Scoreboard */
+    .scoreboard-box {
+      max-width: 880px;
+      width: 95%;
+      border-color: rgba(245, 158, 11, 0.45);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 45px rgba(245, 158, 11, 0.2);
+    }
+
+    .scoreboard-table-wrap {
+      max-height: 440px;
+      overflow-y: auto;
+      overflow-x: auto;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(15, 23, 42, 0.65);
+      margin: 16px 0;
+    }
+
+    .scoreboard-table {
+      width: 100%;
+      min-width: 660px;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    .scoreboard-table th {
+      background: #1e293b;
+      color: #94a3b8;
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 12px 14px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      white-space: nowrap;
+    }
+
+    .scoreboard-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      color: #f1f5f9;
+      vertical-align: middle;
+    }
+
+    .player-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      justify-content: center;
+    }
+
+    .player-name-text {
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: #ffffff;
+      letter-spacing: 0.3px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.3;
+    }
+
+    .player-badges-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .sb-badge {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      border-radius: 6px;
+      padding: 2px 7px;
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      line-height: 1.2;
+    }
+
+    .sb-badge-grp {
+      background: rgba(245, 158, 11, 0.22);
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.5);
+    }
+
+    .sb-badge-indiv {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
+
+    .sb-badge-topic {
+      background: rgba(52, 211, 153, 0.18);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.4);
+    }
+
+    .sb-badge-you {
+      color: #fbbf24;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-left: 2px;
+      white-space: nowrap;
+    }
+
+    .scoreboard-table tr:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .scoreboard-table tr.current-player-row {
+      background: rgba(56, 189, 248, 0.15);
+      border-left: 3px solid #38bdf8;
+    }
+
+    .rank-cell {
+      font-weight: 800;
+      font-size: 1rem;
+      width: 55px;
+      text-align: center;
+    }
+
+    .rank-1 { color: #fbbf24; font-size: 1.3rem; }
+    .rank-2 { color: #e2e8f0; font-size: 1.2rem; }
+    .rank-3 { color: #d97706; font-size: 1.15rem; }
+
+    .score-cell {
+      font-weight: 800;
+      color: #fbbf24;
+      font-size: 1.1rem;
+    }
+
+    .tp-badge-sm {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      background: rgba(16, 185, 129, 0.25);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.4);
+    }
+
+    .btn-reset-scores {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-reset-scores:hover {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: #ef4444;
+      color: #fff;
+    }
+
+    /* Results Screen */
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 18px 0;
+      text-align: left;
+    }
+
+    .result-item {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 12px 16px;
+    }
+
+    .result-label { font-size: 0.8rem; color: #94a3b8; }
+    .result-score { font-size: 1.7rem; font-weight: 800; color: #fbbf24; }
+
+    .pbd-badge {
+      display: inline-block;
+      margin-top: 8px;
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #000;
+      font-weight: 900;
+      padding: 8px 24px;
+      border-radius: 30px;
+      font-size: 1.1rem;
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
+    }
+
+    /* Camera Diagnostic Badge in corner */
+    #cam-preview-box {
+      position: absolute;
+      bottom: 18px;
+      right: 18px;
+      width: 160px;
+      height: 100px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid rgba(16, 185, 129, 0.65);
+      background: #071018;
+      z-index: 10;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 15px rgba(16, 185, 129, 0.2);
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    #cam-preview-box.cam-mode {
+      border-color: rgba(56, 189, 248, 0.5);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5), 0 0 15px rgba(56, 189, 248, 0.2);
+    }
+
+    #cam-preview-canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .cam-preview-label {
+      position: absolute;
+      top: 5px;
+      left: 7px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      background: rgba(0,0,0,0.75);
+      padding: 2px 7px;
+      border-radius: 6px;
+      color: #34d399;
+      pointer-events: none;
+      z-index: 2;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="game-container">
+    <video id="webcam-video" autoplay playsinline muted></video>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="cam-preview-box" class="cam-mode">
+      <div class="cam-preview-label" id="cam-preview-label">📷 Kamera Aktif</div>
+      <canvas id="cam-preview-canvas"></canvas>
+    </div>
+
+    <!-- HUD Top Bar -->
+    <div id="hud-top">
+      <div class="hud-left-group">
+        <div class="hud-card">
+          <div>
+            <div class="hud-title" id="hud-player-title">Pemain</div>
+            <div class="hud-val" id="player-badge">Memilih...</div>
+          </div>
+        </div>
+
+        <div class="hud-card">
+          <div>
+            <div class="hud-title" id="hud-turn-title">Soalan</div>
+            <div class="hud-val" id="level-val">1 / 20</div>
+          </div>
+        </div>
+
+        <!-- Lives / Nyawa -->
+        <div class="hud-card">
+          <div>
+            <div class="hud-title">Nyawa (5 Max)</div>
+            <div class="hud-val" id="lives-val">❤️❤️❤️❤️❤️</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-right-group">
+        <div class="hud-card">
+          <div>
+            <div class="hud-title">Markah</div>
+            <div class="hud-val" id="score-val">0</div>
+          </div>
+          <div style="border-left: 1px solid rgba(255,255,255,0.2); padding-left: 12px;">
+            <div class="hud-title">Kombo</div>
+            <div class="hud-val" id="combo-val">x1</div>
+          </div>
+        </div>
+
+        <div class="hud-card">
+          <div>
+            <div class="hud-title">Masa Cabaran</div>
+            <div class="hud-val" id="timer-val">60s</div>
+          </div>
+        </div>
+
+        <button class="hud-btn btn-gold" id="btn-hud-scoreboard" title="Papan Markah">🏆 Skor</button>
+        <button class="hud-btn btn-fullscreen" id="btn-toggle-fullscreen" title="Skrin Penuh (Tekan F)">⛶ Fullscreen</button>
+        <button class="hud-btn" id="btn-toggle-cam" title="Togol Mod Kamera / Mod Privasi" style="background: rgba(15, 23, 42, 0.7); border-color: rgba(255, 255, 255, 0.2); color: #ffffff;">📷 Mod Kamera</button>
+        <button class="hud-btn" id="btn-restart-quick" title="Tukar Murid / Menu Mula">👤 Tukar Murid</button>
+      </div>
+    </div>
+
+    <!-- Question Banner -->
+    <div id="question-banner">
+      <div class="q-header-row">
+        <span id="question-category">BERSIH DAN SUCI: KONSEP BERSUCI</span>
+        <span class="tp-badge-tag" id="question-tp-badge">ARAS TP3</span>
+      </div>
+      <div id="question-text">Memuatkan soalan...</div>
+      
+      <!-- Countdown Bar -->
+      <div id="question-timer-bar-wrap">
+        <div id="question-timer-bar"></div>
+      </div>
+    </div>
+
+    <!-- Gesture Status Indicator -->
+    <div id="gesture-status">
+      <div class="status-dot" id="dot-status"></div>
+      <span id="txt-status">Memulakan Kamera & AI MediaPipe...</span>
+      <div id="pinch-meter-container" title="Kadar Jarak Cubitan">
+        <div id="pinch-meter-bar"></div>
+      </div>
+    </div>
+
+    <!-- Feedback Popups -->
+    <div id="feedback-popup">TEPAT SEKALI! 🌟</div>
+
+    <!-- Modal 1: Welcome & Profile Selection Screen -->
+    <div class="modal-overlay" id="modal-start">
+      <div class="modal-box">
+        <div class="badge-topic" id="start-badge-topic">Pendidikan Islam • Bidang Fiqah</div>
+        <h1 class="game-title" id="start-game-title">Bersih dan Suci</h1>
+        <p class="game-desc" id="start-game-desc">
+          Bidang Fiqah: Pilih jawapan betul antara <strong>2 buih besar (Kiri [A] vs Kanan [B])</strong> menggunakan cubitan jari atau tetikus!
+        </p>
+
+        <!-- Topic Section (Tajuk: Ibadat Puasa Benteng Diri) -->
+        <div class="topic-section">
+          <label class="profile-label" style="margin-bottom: 8px; color: #fbbf24;">📚 TAJUK PERMAINAN AKTIF:</label>
+          <div class="topic-option-tabs" style="grid-template-columns: 1fr; gap: 8px;">
+            <button type="button" class="topic-opt-btn active" id="btn-topic-puasa" style="cursor: default;">
+              <span>💧 Bidang Fiqah: Bersih dan Suci (Konsep Bersuci)</span>
+              <span class="topic-opt-sub">Pendidikan Islam • 50 Soalan Lengkap (Tahap Mudah, Sederhana &amp; Sukar)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode Selector Box (Mod Individu vs Mod Kumpulan Tournament Battle) -->
+        <div class="mode-section">
+          <label class="profile-label" style="margin-bottom: 8px; color: #818cf8;">🎮 PILIH MOD PERMAINAN (OPTION MOD):</label>
+          <div class="mode-option-tabs">
+            <button type="button" class="mode-opt-btn" id="btn-mode-individual">
+              <span>👤 Mod Individu</span>
+              <span class="mode-opt-sub">Pilih Nama Murid • Ujian 1 Minit (60s)</span>
+            </button>
+            <button type="button" class="mode-opt-btn active" id="btn-mode-group">
+              <span>👥 Mod Kumpulan (Tournament Battle)</span>
+              <span class="mode-opt-sub">6 Pasukan Tokoh Islam • 1 Minit 30s (90s)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Group Selector Box (Tournament Battle - Tokoh Islam) -->
+        <div class="group-section" id="group-selection-box" style="display: block;">
+          <label class="profile-label" for="group-select" id="lbl-select-group" style="color: #fbbf24;">
+            ⚔️ PILIH PASUKAN TOKOH ISLAM:
+          </label>
+          <select id="group-select" class="profile-dropdown" style="border-color: rgba(251, 191, 36, 0.65);">
+            <option value="KUMPULAN ABU BAKAR AS-SIDDIQ">⚔️ Kumpulan Abu Bakar As-Siddiq</option>
+            <option value="KUMPULAN UMAR AL-KHATTAB">🛡️ Kumpulan Umar Al-Khattab</option>
+            <option value="KUMPULAN UTHMAN BIN AFFAN">📖 Kumpulan Uthman Bin Affan</option>
+            <option value="KUMPULAN ALI BIN ABI TALIB">🗡️ Kumpulan Ali Bin Abi Talib</option>
+            <option value="KUMPULAN BILAL BIN RABAH">🕌 Kumpulan Bilal Bin Rabah</option>
+            <option value="KUMPULAN KHALID BIN AL-WALID">🏇 Kumpulan Khalid Bin Al-Walid</option>
+          </select>
+
+          <div class="profile-edit-wrap">
+            <label class="profile-label" for="group-name-input" style="color: #fbbf24; margin-bottom: 6px;">
+              ✏️ NAMA KUMPULAN AKTIF (BOLEH UBAH NAMA PASUKAN JIKA MAHU):
+            </label>
+            <div class="profile-input-row">
+              <input
+                type="text"
+                id="group-name-input"
+                class="profile-text-input"
+                style="border-color: rgba(251, 191, 36, 0.65);"
+                placeholder="Nama Kumpulan Pasukan..."
+                value="KUMPULAN ABU BAKAR AS-SIDDIQ"
+                autocomplete="off"
+              />
+              <button type="button" class="btn-prof-action btn-prof-add" id="btn-add-group" title="Tambah kumpulan baru jika perlu">
+                ➕ Tambah Kumpulan
+              </button>
+              <button type="button" class="btn-prof-action btn-prof-reset" id="btn-reset-groups" title="Kembalikan kepada 6 Kumpulan Tokoh Islam asal">
+                🔄 Reset Kumpulan
+              </button>
+            </div>
+            <div class="tournament-banner-note">
+              ⚡ <strong>Format Tournament Battle (PAK-21):</strong> Setiap kumpulan diberi 1 pusingan (<strong>1 minit 30 saat</strong>) untuk menjawab 20 soalan secara bergilir-gilir (relay). Kumpulan dengan markah tertinggi dan TP terbaik dinobatkan sebagai <strong>Juara Kelas</strong>!
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Selector Box (Mod Individu) -->
+        <div class="profile-section" id="individual-selection-box" style="display: none;">
+          <label class="profile-label" for="student-select" id="lbl-select-profile" style="color: #38bdf8;">
+            👤 PILIH DARI SENARAI PEMAIN INDIVIDU:
+          </label>
+          <select id="student-select" class="profile-dropdown">
+            <!-- Populated dynamically -->
+          </select>
+
+          <div class="profile-edit-wrap">
+            <label class="profile-label" for="profile-name-input" style="color: #38bdf8; margin-bottom: 6px;">
+              ✏️ NAMA PEMAIN (BOLEH TAIP NAMA SENDIRI ATAU EDIT):
+            </label>
+            <div class="profile-input-row">
+              <input
+                type="text"
+                id="profile-name-input"
+                class="profile-text-input"
+                placeholder="Taip nama anda di sini..."
+                autocomplete="off"
+              />
+              <button type="button" class="btn-prof-action btn-prof-add" id="btn-add-profile" title="Tambah sebagai nama baharu dalam senarai">
+                ➕ Tambah Nama
+              </button>
+              <button type="button" class="btn-prof-action btn-prof-edit" id="btn-edit-profile" title="Kemas kini ejaan nama yang dipilih dalam senarai">
+                ✏️ Simpan Edit
+              </button>
+              <button type="button" class="btn-prof-action btn-prof-del" id="btn-del-profile" title="Padam nama yang dipilih dari senarai">
+                🗑️ Padam
+              </button>
+              <button type="button" class="btn-prof-action btn-prof-reset" id="btn-reset-profile" title="Kosongkan senarai nama profil">
+                🔄 Reset Senarai
+              </button>
+            </div>
+            <div class="profile-status-msg" id="profile-status-msg">
+              💡 Tip: Taip nama anda dan tekan <strong>➕ Tambah Nama</strong> atau terus klik <strong>Mula Bermain</strong>!
+            </div>
+          </div>
+        </div>
+
+        <!-- Privacy Mode Setting Box -->
+        <div class="mode-section" style="margin-top: 14px; border-top: 1px dashed rgba(255,255,255,0.14); padding-top: 14px;">
+          <label class="profile-label" style="margin-bottom: 8px; color: #10b981;">🛡️ KAWALAN KAMERA & JAMINAN PRIVASI:</label>
+          <div class="mode-option-tabs">
+            <button type="button" class="mode-opt-btn" id="btn-privacy-on">
+              <span>🛡️ Mod Privasi</span>
+              <span class="mode-opt-sub">Pinch Berfungsi • Muka TIDAK Ditunjuk (Animasi Sahaja)</span>
+            </button>
+            <button type="button" class="mode-opt-btn active" id="btn-privacy-off">
+              <span>📷 Mod Kamera Penuh (Default)</span>
+              <span class="mode-opt-sub">Papar Video & Wajah Pemain di Latar</span>
+            </button>
+          </div>
+          <div class="tournament-banner-note" style="border-color: rgba(16, 185, 129, 0.4); background: rgba(6, 78, 59, 0.25); color: #a7f3d0; margin-top: 8px;">
+            🔒 <strong>Jaminan Privasi:</strong> Kamera hanya bertindak sebagai pengesan sensor pergerakan tangan dan cubitan (pinch). Wajah dan suasana bilik <strong>langsung tidak dipaparkan atau dirakam</strong>. Hanya animasi rangka tangan, radar sensor, dan kesan visual cubitan (pinch) yang akan kelihatan.
+          </div>
+        </div>
+
+        <div class="rules-grid">
+          <div class="rule-card">
+            <div class="rule-icon">🎯</div>
+            <div class="rule-title" id="rule-title-q">20 Soalan (2 Pilihan)</div>
+            <div class="rule-desc" id="rule-desc-q">Hanya 2 buih jawapan besar (Kiri vs Kanan). Cepat & kemas!</div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-icon">⚡</div>
+            <div class="rule-title" id="rule-title-time">Masa 1:30 (90s)!</div>
+            <div class="rule-desc" id="rule-desc-time">Pusingan 1 minit 30 saat untuk pasukan!</div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-icon">❤️</div>
+            <div class="rule-title">5 Nyawa</div>
+            <div class="rule-desc">Salah jawab tolak 1 nyawa & terus tukar ke soalan baharu!</div>
+          </div>
+          <div class="rule-card">
+            <div class="rule-icon">👥</div>
+            <div class="rule-title" id="rule-title-mode">Giliran Ahli (Relay)</div>
+            <div class="rule-desc" id="rule-desc-mode">Bergilir-gilir jawab 20 soalan untuk jadi Juara Kelas!</div>
+          </div>
+        </div>
+
+        <button class="btn-main" id="btn-start-game">Mula Bermain Sekarang 🚀</button>
+        
+        <div class="action-links-row">
+          <button class="btn-link-action btn-gold-link" id="btn-open-scoreboard">🏆 Lihat Scoreboard</button>
+          <button class="btn-link-action btn-fullscreen-link" id="btn-modal-fullscreen">⛶ Skrin Penuh (Full Screen)</button>
+          <button class="btn-link-action" id="btn-mouse-only">Main Guna Tetikus (Mouse)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 2: Game Over / PBD Result Screen -->
+    <div class="modal-overlay" id="modal-gameover" style="display: none;">
+      <div class="modal-box">
+        <div class="badge-topic" id="end-status-badge">Keputusan Pentaksiran Bilik Darjah (PBD)</div>
+        <h1 class="game-title" id="end-title">Tahniah! Kuiz Selesai!</h1>
+        <p class="game-desc" id="end-subtitle">Tahniah! Pasukan telah selesai menjawab kuiz bersih dan suci (konsep bersuci)!</p>
+
+        <div style="font-size: 1.15rem; font-weight: 800; color: #38bdf8; margin-bottom: 12px;" id="end-student-name">
+          Pemain: -
+        </div>
+
+        <div class="result-grid">
+          <div class="result-item">
+            <div class="result-label">Markah Sesi Ini</div>
+            <div class="result-score" id="end-score">0</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Soalan Dijawab</div>
+            <div class="result-score" id="end-answered" style="color: #38bdf8;">0 / 20</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Baki Nyawa</div>
+            <div class="result-score" id="end-remaining-lives" style="color: #ef4444;">0 / 5</div>
+          </div>
+          <div class="result-item">
+            <div class="result-label">Skor Rekod Tertinggi</div>
+            <div class="result-score" id="end-personal-best" style="color: #fbbf24;">0</div>
+          </div>
+        </div>
+
+        <div class="pbd-badge" id="pbd-level">Tahap Penguasaan Sesi: TP4</div>
+        <div style="margin-top: 10px; font-size: 0.95rem; color: #fbbf24; font-weight: 700;" id="end-highest-tp-text">
+          🎖️ Rekod TP Tertinggi Anda di Scoreboard: TP4
+        </div>
+
+        <br>
+        <button class="btn-main" id="btn-restart">Main Lagi 🔄</button>
+        <div class="action-links-row">
+          <button class="btn-link-action btn-gold-link" id="btn-gameover-scoreboard">🏆 Buka Scoreboard</button>
+          <button class="btn-link-action" id="btn-switch-player">👤 Tukar Murid Lain</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal 3: Scoreboard Screen (Leaderboard) -->
+    <div class="modal-overlay" id="modal-scoreboard" style="display: none;">
+      <div class="modal-box scoreboard-box">
+        <div class="badge-topic" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">
+          Papan Markah Rasmi • Tournament & Murid
+        </div>
+        <h1 class="game-title" style="background: linear-gradient(to right, #fbbf24, #f59e0b);">
+          🏆 Scoreboard Markah & TP Tertinggi
+        </h1>
+        <p class="game-desc" style="margin-bottom: 10px;">
+          Setiap pemain hanya direkodkan <strong>satu markah tertinggi</strong> dan <strong>TP paling tinggi</strong> yang pernah dicapai (tiada nama berulang).
+        </p>
+        <div class="sb-filter-tabs">
+          <button type="button" class="sb-tab-btn active" data-sb-filter="all">🏆 Semua Rekod</button>
+          <button type="button" class="sb-tab-btn" data-sb-filter="group" style="border-color: rgba(251, 191, 36, 0.6); color: #fbbf24;">👥 Kedudukan Kumpulan (Tokoh Islam)</button>
+          <button type="button" class="sb-tab-btn" data-sb-filter="individual">👤 Pemain Individu</button>
+        </div>
+
+        <div class="scoreboard-table-wrap">
+          <table class="scoreboard-table">
+            <thead>
+              <tr>
+                <th style="text-align: center;">Ked.</th>
+                <th>Nama Pemain / Pasukan</th>
+                <th style="text-align: right;">Markah Tertinggi</th>
+                <th style="text-align: center;">Ketepatan</th>
+                <th style="text-align: center;">TP Tertinggi</th>
+                <th style="text-align: center;">Tarikh & Masa</th>
+              </tr>
+            </thead>
+            <tbody id="scoreboard-body">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; flex-wrap: wrap; gap: 10px;">
+          <button class="btn-reset-scores" id="btn-reset-scoreboard" title="Padam rekod markah untuk memulakan sesi ujian baharu">
+            🗑️ Reset Semua Markah (Untuk Ujian)
+          </button>
+          <button class="btn-main" id="btn-close-scoreboard" style="padding: 12px 34px; font-size: 1.05rem;">
+            Tutup Papan Markah ✕
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+        /* =========================================================
+       1. BANK SOALAN TAJUK: BERSIH DAN SUCI (KONSEP BERSUCI - 50 SOALAN)
+       ========================================================= */
+    const BERSIH_SUCI_POOL_TP3 = [
+      {
+            "question": "Maksud bersuci (taharah) dari segi syarak ialah menghilangkan hadas dan...",
+            "tp": "TP3",
+            "correct": "Menyucikan najis",
+            "distractors": [
+                  "Mengurangkan kotoran pada pakaian"
+            ]
+      },
+      {
+            "question": "Hukum bersuci bagi seseorang yang hendak menunaikan solat ialah...",
+            "tp": "TP3",
+            "correct": "Wajib",
+            "distractors": [
+                  "Sunat"
+            ]
+      },
+      {
+            "question": "Air yang suci dan boleh digunakan untuk menyucikan sesuatu dikenali sebagai...",
+            "tp": "TP3",
+            "correct": "Air Mutlak",
+            "distractors": [
+                  "Air Musta'mal"
+            ]
+      },
+      {
+            "question": "Antara berikut, manakah sumber air mutlak?",
+            "tp": "TP3",
+            "correct": "Air embun",
+            "distractors": [
+                  "Air kopi"
+            ]
+      },
+      {
+            "question": "Berapakah bahagian najis mengikut tahap berat atau ringannya?",
+            "tp": "TP3",
+            "correct": "Tiga bahagian",
+            "distractors": [
+                  "Empat bahagian"
+            ]
+      },
+      {
+            "question": "Air kencing bayi lelaki bawah 2 tahun yang hanya menyusu susu ibu tergolong dalam najis...",
+            "tp": "TP3",
+            "correct": "Mukhaffafah",
+            "distractors": [
+                  "Mutawassitah"
+            ]
+      },
+      {
+            "question": "Najis yang tergolong dalam kategori paling berat (Mughallazah) berpunca daripada...",
+            "tp": "TP3",
+            "correct": "Anjing dan babi",
+            "distractors": [
+                  "Darah dan nanah"
+            ]
+      },
+      {
+            "question": "Najis sederhana seperti darah, nanah, dan bangkai dipanggil najis...",
+            "tp": "TP3",
+            "correct": "Mutawassitah",
+            "distractors": [
+                  "Mughallazah"
+            ]
+      },
+      {
+            "question": "Menghilangkan hadas kecil dilakukan dengan cara...",
+            "tp": "TP3",
+            "correct": "Mengambil wuduk",
+            "distractors": [
+                  "Mandi wajib"
+            ]
+      },
+      {
+            "question": "Berapakah rukun wuduk?",
+            "tp": "TP3",
+            "correct": "6 rukun",
+            "distractors": [
+                  "8 rukun"
+            ]
+      },
+      {
+            "question": "Berkumur-kumur semasa mengambil wuduk hukumnya adalah...",
+            "tp": "TP3",
+            "correct": "Sunat",
+            "distractors": [
+                  "Rukun"
+            ]
+      },
+      {
+            "question": "Membasuh muka semasa berwuduk termasuk dalam perkara...",
+            "tp": "TP3",
+            "correct": "Rukun wuduk",
+            "distractors": [
+                  "Syarat sah wuduk"
+            ]
+      },
+      {
+            "question": "Bersentuhan kulit antara lelaki dan perempuan bukan mahram tanpa lapik menurut Mazhab Syafi'i...",
+            "tp": "TP3",
+            "correct": "Membatalkan wuduk",
+            "distractors": [
+                  "Tidak membatalkan wuduk"
+            ]
+      },
+      {
+            "question": "Mandi wajib diwajibkan ke atas individu yang berada dalam keadaan...",
+            "tp": "TP3",
+            "correct": "Berhadas besar",
+            "distractors": [
+                  "Berhadas kecil"
+            ]
+      },
+      {
+            "question": "Antara rukun mandi wajib ialah meratakan air ke seluruh...",
+            "tp": "TP3",
+            "correct": "Tubuh badan termasuk kulit dan bulu",
+            "distractors": [
+                  "Anggota wuduk sahaja"
+            ]
+      },
+      {
+            "question": "Debu tanah digunakan untuk bersuci sebagai ganti air melalui ibadah...",
+            "tp": "TP3",
+            "correct": "Tayamum",
+            "distractors": [
+                  "Istinjak"
+            ]
+      },
+      {
+            "question": "Istinjak ialah perbuatan membersihkan kubul atau dubur selepas...",
+            "tp": "TP3",
+            "correct": "Buang air kecil atau air besar",
+            "distractors": [
+                  "Mengalami luka di kaki"
+            ]
+      },
+      {
+            "question": "Doa masuk ke tandas sunat dibaca...",
+            "tp": "TP3",
+            "correct": "Sebelum melangkah masuk dengan kaki kiri",
+            "distractors": [
+                  "Selepas selesai membuang air"
+            ]
+      },
+      {
+            "question": "Bersugi atau menggosok gigi sebelum solat hukumnya...",
+            "tp": "TP3",
+            "correct": "Sunat yang sangat dituntut",
+            "distractors": [
+                  "Wajib"
+            ]
+      },
+      {
+            "question": "Air perigi, air sungai, dan air laut diklasifikasikan sebagai air...",
+            "tp": "TP3",
+            "correct": "Mutlak",
+            "distractors": [
+                  "Musyammas"
+            ]
+      },
+      {
+            "question": "Seseorang yang memakai pakaian bernajis semasa solat, solatnya...",
+            "tp": "TP3",
+            "correct": "Tidak sah",
+            "distractors": [
+                  "Sah jika najis itu sedikit"
+            ]
+      }
+];
+
+    const BERSIH_SUCI_POOL_TP4 = [
+      {
+            "question": "Najis 'Ainiyah ialah najis yang...",
+            "tp": "TP4",
+            "correct": "Boleh dilihat bau, rasa, atau warnanya",
+            "distractors": [
+                  "Telah kering dan hilang semua sifat fizikalnya"
+            ]
+      },
+      {
+            "question": "Najis Hukmiyah ialah najis yang...",
+            "tp": "TP4",
+            "correct": "Tidak mempunyai bau, warna, atau rasa yang nyata",
+            "distractors": [
+                  "Masih cair dan mengeluarkan bau kuat"
+            ]
+      },
+      {
+            "question": "Tidur yang membatalkan wuduk ialah tidur yang...",
+            "tp": "TP4",
+            "correct": "Punggung tidak tetap di atas lantai",
+            "distractors": [
+                  "Rapat dan tetap punggung di atas lantai"
+            ]
+      },
+      {
+            "question": "Niat mandi wajib perlu dihadirkan semasa...",
+            "tp": "TP4",
+            "correct": "Kali pertama air mencecah mana-mana bahagian badan",
+            "distractors": [
+                  "Sebelum melangkah masuk ke dalam bilik air"
+            ]
+      },
+      {
+            "question": "Anggota yang wajib disapu debu ketika bertayamum ialah muka dan...",
+            "tp": "TP4",
+            "correct": "Kedua-dua belah tangan hingga siku",
+            "distractors": [
+                  "Kedua-dua belah kaki hingga buku lali"
+            ]
+      },
+      {
+            "question": "Berapakah tepukan debu yang wajib dilakukan untuk menyempurnakan rukun tayamum?",
+            "tp": "TP4",
+            "correct": "Dua kali tepukan",
+            "distractors": [
+                  "Tiga kali tepukan"
+            ]
+      },
+      {
+            "question": "Alat utama yang paling afdal digunakan untuk beristinjak ialah...",
+            "tp": "TP4",
+            "correct": "Menggabungkan batu/tisu kering kemudian air mutlak",
+            "distractors": [
+                  "Menggunakan daun kering sahaja"
+            ]
+      },
+      {
+            "question": "Syarat sah beristinjak menggunakan benda kesat (seperti batu/tisu) ialah sekurang-kurangnya menggunakan...",
+            "tp": "TP4",
+            "correct": "3 biji batu atau 3 permukaan sapuan",
+            "distractors": [
+                  "1 biji batu sahaja tanpa had sapuan"
+            ]
+      },
+      {
+            "question": "Membuang air di tempat laluan orang ramai atau tempat berteduh hukumnya...",
+            "tp": "TP4",
+            "correct": "Haram",
+            "distractors": [
+                  "Makruh"
+            ]
+      }
+];
+
+    const BERSIH_SUCI_POOL_TP5 = [
+      {
+            "question": "Air Musyammas makruh digunakan untuk bersuci pada badan kerana...",
+            "tp": "TP5",
+            "correct": "Dikhuatiri mendatangkan penyakit kulit seperti sopak",
+            "distractors": [
+                  "Menghilangkan pahala sunat wuduk"
+            ]
+      },
+      {
+            "question": "Ukuran sukatan minimum bagi air dua kolah mengikut anggaran liter moden adalah sekitar...",
+            "tp": "TP5",
+            "correct": "190 hingga 216 liter (atau lebih)",
+            "distractors": [
+                  "150 hingga 180 liter"
+            ]
+      },
+      {
+            "question": "Air kurang 2 kolah yang dijilat kucing hukumnya...",
+            "tp": "TP5",
+            "correct": "Suci dan menyucikan (tidak bernajis)",
+            "distractors": [
+                  "Menjadi mutanajjis"
+            ]
+      },
+      {
+            "question": "Air kurang 2 kolah yang dimasuki bangkai lalat yang tidak mengalir darahnya dan tidak mengubah sifat air hukumnya...",
+            "tp": "TP5",
+            "correct": "Tidak bernajis dan kekal suci",
+            "distractors": [
+                  "Bernajis serta merta"
+            ]
+      },
+      {
+            "question": "Cara menyucikan najis Mukhaffafah yang tepat ialah membuang 'ain najis terlebih dahulu kemudian...",
+            "tp": "TP5",
+            "correct": "Merenjis air mutlak ke atas kawasan tersebut hingga meliputi tempat najis",
+            "distractors": [
+                  "Membasuh dan mengalirkan air sebanyak 3 kali cucian"
+            ]
+      },
+      {
+            "question": "Cara menyucikan najis Mughallazah ialah membasuh sebanyak 7 kali, dan...",
+            "tp": "TP5",
+            "correct": "Salah satu basuhannya bercampur tanah bersih",
+            "distractors": [
+                  "Basuhan terakhir mesti menggunakan sabun wangi"
+            ]
+      },
+      {
+            "question": "Sekiranya najis 'Ainiyah telah dibasuh berulang kali tetapi warnanya masih sukar dihilangkan, status kesuciannya ialah...",
+            "tp": "TP5",
+            "correct": "Dimaafkan dan dikira telah suci",
+            "distractors": [
+                  "Tetap bernajis dan wajib dipotong bahagian tersebut"
+            ]
+      },
+      {
+            "question": "Kulit bangkai haiwan (selain anjing dan babi) boleh menjadi suci melalui proses...",
+            "tp": "TP5",
+            "correct": "Menyamak",
+            "distractors": [
+                  "Memasak dengan api panas"
+            ]
+      },
+      {
+            "question": "Bahan yang sah digunakan untuk menyamak kulit haiwan mestilah bersifat...",
+            "tp": "TP5",
+            "correct": "Kelat dan tajam mengikis lendir/daging",
+            "distractors": [
+                  "Manis dan melicinkan bulu"
+            ]
+      },
+      {
+            "question": "Air Musta'mal ialah air yang telah digunakan untuk...",
+            "tp": "TP5",
+            "correct": "Mengangkat hadas wajib atau menghilangkan najis kali pertama",
+            "distractors": [
+                  "Mandi sunat pada hari Jumaat"
+            ]
+      },
+      {
+            "question": "Adakah sah wuduk sekiranya terdapat lapisan cat tebal kalis air di atas kuku semasa membasuh tangan?",
+            "tp": "TP5",
+            "correct": "Tidak sah kerana menghalang air sampai ke anggota wuduk",
+            "distractors": [
+                  "Sah kerana cat bukan najis"
+            ]
+      },
+      {
+            "question": "Jika seseorang ragu-ragu sama ada wuduknya telah batal atau belum semasa sedang solat, kaedah fiqh menetapkan bahawa dia perlu...",
+            "tp": "TP5",
+            "correct": "Berpegang pada keyakinan bahawa wuduknya masih ada",
+            "distractors": [
+                  "Membatalkan solat serta merta untuk wuduk baharu"
+            ]
+      },
+      {
+            "question": "Satu tayamum sah digunakan untuk menunaikan...",
+            "tp": "TP5",
+            "correct": "Satu solat fardu sahaja dan beberapa solat sunat",
+            "distractors": [
+                  "Berbilang solat fardu selagi belum batal"
+            ]
+      },
+      {
+            "question": "Tayamum hanya boleh dilakukan selepas...",
+            "tp": "TP5",
+            "correct": "Masuk waktu solat fardu berkenaan",
+            "distractors": [
+                  "Sejam sebelum waktu solat"
+            ]
+      },
+      {
+            "question": "Cecair likat, jernih, dan melekit yang keluar ketika bangkit syahwat tanpa memancut dinamakan...",
+            "tp": "TP5",
+            "correct": "Air Mazi (hukumnya najis dan membatalkan wuduk)",
+            "distractors": [
+                  "Air Mani (hukumnya suci dan mewajibkan mandi)"
+            ]
+      },
+      {
+            "question": "Keluar air mani menyebabkan seseorang berhadas besar dan hukum zat air mani itu sendiri mengikut Mazhab Syafi'i adalah...",
+            "tp": "TP5",
+            "correct": "Suci (bukan najis)",
+            "distractors": [
+                  "Bernajis Mutawassitah"
+            ]
+      },
+      {
+            "question": "Syarat sah istinjak menggunakan batu/tisu ialah najis tersebut...",
+            "tp": "TP5",
+            "correct": "Belum kering dan tidak meleleh melepasi kawasan punggung/zakar",
+            "distractors": [
+                  "Telah kering sepenuhnya selama beberapa jam"
+            ]
+      },
+      {
+            "question": "Tidak sah beristinjak menggunakan bahan seperti...",
+            "tp": "TP5",
+            "correct": "Roti atau tulang makanan jin",
+            "distractors": [
+                  "Kertas tisu kering"
+            ]
+      },
+      {
+            "question": "Menghilangkan bau, rasa, dan warna najis Mutawassitah termasuk dalam fasa...",
+            "tp": "TP5",
+            "correct": "Menyucikan najis 'Ainiyah",
+            "distractors": [
+                  "Menyucikan najis Hukmiyah"
+            ]
+      },
+      {
+            "question": "Air mutlak yang bercampur dengan bahan suci lain (seperti teh atau sirap) sehingga berubah nama dan sifatnya dinamakan...",
+            "tp": "TP5",
+            "correct": "Air Mutaghayyir (suci tetapi tidak menyucikan)",
+            "distractors": [
+                  "Air Mutanajjis (kotor dan bernajis)"
+            ]
+      }
+];
+
+    const TOPIC_CONFIG = {
+      'bersih_suci': {
+        key: 'bersih_suci',
+        badge: 'Pendidikan Islam • Bidang Fiqah',
+        title: 'Bersih dan Suci (Konsep Bersuci)',
+        desc: 'Bidang Fiqah: Pilih jawapan betul antara <strong>2 buih besar (Kiri [A] vs Kanan [B])</strong> menggunakan cubitan jari atau tetikus!',
+        bannerHeader: 'BERSIH DAN SUCI: KONSEP BERSUCI',
+        shortTag: 'Fiqah: Bersih & Suci',
+        poolTP3: BERSIH_SUCI_POOL_TP3,
+        poolTP4: BERSIH_SUCI_POOL_TP4,
+        poolTP5: BERSIH_SUCI_POOL_TP5
+      }
+    };
+
+    let activeTopic = 'bersih_suci';
+
+    // Fungsi Pensampelan Rawak & Adil (8 TP3 Mudah + 6 TP4 Sederhana + 6 TP5 Sukar = 20 Soalan)
+    function generateBalancedQuiz() {
+      const shuffle = arr => [...arr].sort(() => Math.random() - 0.5);
+      const cfg = TOPIC_CONFIG[activeTopic] || TOPIC_CONFIG['bersih_suci'];
+
+      const selectedTP3 = shuffle(cfg.poolTP3).slice(0, 8);
+      const selectedTP4 = shuffle(cfg.poolTP4).slice(0, 6);
+      const selectedTP5 = shuffle(cfg.poolTP5).slice(0, 6);
+
+      const combined = [...selectedTP3, ...selectedTP4, ...selectedTP5];
+      return shuffle(combined);
+    }
+
+    let currentQuizSet = [];
+
+    /* =========================================================
+       2. PROFILE MANAGEMENT (INDIVIDU & KUMPULAN) & SCOREBOARD
+       ========================================================= */
+    const STORAGE_KEY = 'bersih_suci_scoreboard_v1';
+    const STORAGE_CUSTOM_LIST_KEY = 'bersih_suci_list_pemain_v1';
+    const TP_RANK_MAP = { 'TP1': 1, 'TP2': 2, 'TP3': 3, 'TP4': 4, 'TP5': 5, 'TP6': 6 };
+
+    /* =========================================================
+       2B. PRESET 6 KUMPULAN TOKOH ISLAM (TOURNAMENT BATTLE)
+       ========================================================= */
+    const STORAGE_GROUPS_LIST_KEY = 'puasa_benteng_diri_groups_list_v1';
+
+    const DEFAULT_TOKOH_GROUPS = [
+      { id: "g_abubakar", name: "KUMPULAN ABU BAKAR AS-SIDDIQ", shortName: "Abu Bakar", icon: "⚔️" },
+      { id: "g_umar", name: "KUMPULAN UMAR AL-KHATTAB", shortName: "Umar Al-Khattab", icon: "🛡️" },
+      { id: "g_uthman", name: "KUMPULAN UTHMAN BIN AFFAN", shortName: "Uthman Affan", icon: "📖" },
+      { id: "g_ali", name: "KUMPULAN ALI BIN ABI TALIB", shortName: "Ali Abi Talib", icon: "🗡️" },
+      { id: "g_bilal", name: "KUMPULAN BILAL BIN RABAH", shortName: "Bilal Bin Rabah", icon: "🕌" },
+      { id: "g_khalid", name: "KUMPULAN KHALID BIN AL-WALID", shortName: "Khalid Al-Walid", icon: "🏇" }
+    ];
+
+    let activeGameMode = 'group'; // 'individual' or 'group' (DEFAULT: group)
+
+    function getGroupsList() {
+      try {
+        const raw = localStorage.getItem(STORAGE_GROUPS_LIST_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch (e) {}
+      return JSON.parse(JSON.stringify(DEFAULT_TOKOH_GROUPS));
+    }
+
+    function saveGroupsList(list) {
+      localStorage.setItem(STORAGE_GROUPS_LIST_KEY, JSON.stringify(list));
+    }
+
+    function isGroupPlayer(name) {
+      if (!name) return false;
+      const norm = name.trim().toLowerCase();
+      const gList = getGroupsList();
+      return norm.startsWith('kumpulan ') || gList.some(g => g.name.trim().toLowerCase() === norm);
+    }
+
+    let activeScoreboardFilter = 'all';     // 'all', 'group', or 'individual'
+
+    function getCustomList() {
+      try {
+        const raw = localStorage.getItem(STORAGE_CUSTOM_LIST_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveCustomList(list) {
+      localStorage.setItem(STORAGE_CUSTOM_LIST_KEY, JSON.stringify(list));
+    }
+
+    function getScoreboard() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const list = raw ? JSON.parse(raw) : [];
+        return list.filter(entry => entry.name && !entry.name.includes('TEST MODE') && !entry.name.includes('GURU'));
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveStudentScore(studentName, newScore, accuracy, sessionTp) {
+      if (!studentName || studentName.includes('Sila Pilih')) return { personalBest: newScore, highestTp: sessionTp };
+
+      let board = getScoreboard();
+      const existingIdx = board.findIndex(entry => entry.name.trim().toLowerCase() === studentName.trim().toLowerCase());
+
+      const nowStr = new Date().toLocaleDateString('ms-MY', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+
+      let category = 'individual';
+      if (activeGameMode === 'group' || isGroupPlayer(studentName)) {
+        category = 'group';
+      }
+      let personalBest = newScore;
+      let highestTp = sessionTp;
+
+      if (existingIdx !== -1) {
+        const existing = board[existingIdx];
+        personalBest = Math.max(existing.score, newScore);
+
+        const prevRank = TP_RANK_MAP[existing.highestTp] || 0;
+        const currentRank = TP_RANK_MAP[sessionTp] || 0;
+        highestTp = currentRank >= prevRank ? sessionTp : existing.highestTp;
+
+        const topicTag = (TOPIC_CONFIG[activeTopic] || TOPIC_CONFIG['puasa_t2']).shortTag;
+        board[existingIdx] = {
+          name: studentName,
+          category: existing.category || category,
+          topic: topicTag,
+          score: personalBest,
+          accuracy: newScore >= existing.score ? accuracy : existing.accuracy,
+          highestTp: highestTp,
+          date: nowStr
+        };
+      } else {
+        const topicTag = (TOPIC_CONFIG[activeTopic] || TOPIC_CONFIG['puasa_t2']).shortTag;
+        board.push({
+          name: studentName,
+          category: category,
+          topic: topicTag,
+          score: newScore,
+          accuracy: accuracy,
+          highestTp: sessionTp,
+          date: nowStr
+        });
+      }
+
+      board.sort((a, b) => b.score - a.score);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(board));
+      return { personalBest, highestTp };
+    }
+
+    function renameInScoreboard(oldName, newName) {
+      if (!oldName || !newName) return;
+      let board = getScoreboard();
+      let changed = false;
+      board.forEach(entry => {
+        if (entry.name.trim().toLowerCase() === oldName.trim().toLowerCase()) {
+          entry.name = newName.trim();
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(board));
+      }
+    }
+
+    function renderScoreboardUI(highlightStudent = '') {
+      const tbody = document.getElementById('scoreboard-body');
+      tbody.innerHTML = '';
+      let board = getScoreboard();
+
+      if (activeScoreboardFilter === 'group') {
+        const playedEntries = board.filter(entry => entry.category === 'group' || isGroupPlayer(entry.name));
+        const gList = getGroupsList();
+        const fullGroupList = gList.map(g => {
+          const found = playedEntries.find(e => e.name.trim().toLowerCase() === g.name.trim().toLowerCase());
+          if (found) return found;
+          return {
+            name: g.name,
+            category: 'group',
+            topic: (TOPIC_CONFIG[activeTopic] || TOPIC_CONFIG['puasa_t2']).shortTag,
+            score: 0,
+            accuracy: 0,
+            highestTp: 'Belum Main',
+            date: 'Belum Bertanding'
+          };
+        });
+        playedEntries.forEach(pe => {
+          if (!fullGroupList.some(fg => fg.name.trim().toLowerCase() === pe.name.trim().toLowerCase())) {
+            fullGroupList.push(pe);
+          }
+        });
+        fullGroupList.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          if (b.highestTp !== 'Belum Main' && a.highestTp === 'Belum Main') return 1;
+          if (a.highestTp !== 'Belum Main' && b.highestTp === 'Belum Main') return -1;
+          return a.name.localeCompare(b.name);
+        });
+        board = fullGroupList;
+      } else if (activeScoreboardFilter === 'individual') {
+        board = board.filter(entry => entry.category !== 'group' && !isGroupPlayer(entry.name));
+      }
+
+      if (board.length === 0) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td colspan="6" style="text-align: center; padding: 28px; color: #94a3b8;">Tiada rekod markah bagi kategori ini lagi. Pilih atau tambah nama pemain dan mulakan kuiz!</td>';
+        tbody.appendChild(tr);
+        return;
+      }
+
+      board.forEach((entry, idx) => {
+        const tr = document.createElement('tr');
+        if (highlightStudent && entry.name.toLowerCase() === highlightStudent.toLowerCase()) {
+          tr.className = 'current-player-row';
+        }
+
+        let rankBadge = `${idx + 1}`;
+        if (idx === 0) rankBadge = '🥇';
+        else if (idx === 1) rankBadge = '🥈';
+        else if (idx === 2) rankBadge = '🥉';
+        const isGrp = entry.category === 'group' || isGroupPlayer(entry.name);
+        const catBadge = isGrp
+          ? '<span class="sb-badge sb-badge-grp">👥 KUMPULAN</span>'
+          : '<span class="sb-badge sb-badge-indiv">👤 INDIVIDU</span>';
+
+        const topicBadge = entry.topic
+          ? `<span class="sb-badge sb-badge-topic">${entry.topic}</span>`
+          : '';
+
+        const youBadge = (highlightStudent && entry.name.toLowerCase() === highlightStudent.toLowerCase())
+          ? '<span class="sb-badge-you">(Anda)</span>'
+          : '';
+
+        tr.innerHTML = `
+          <td class="rank-cell ${idx === 0 ? 'rank-1' : (idx === 1 ? 'rank-2' : (idx === 2 ? 'rank-3' : ''))}">
+            ${rankBadge}
+          </td>
+          <td>
+            <div class="player-cell">
+              <div class="player-name-text">
+                <span>${entry.name}</span>
+                ${youBadge}
+              </div>
+              <div class="player-badges-row">
+                ${catBadge}
+                ${topicBadge}
+              </div>
+            </div>
+          </td>
+          <td style="text-align: right;" class="score-cell">${entry.score}</td>
+          <td style="text-align: center; color: #38bdf8; font-weight: 700;">${entry.accuracy}%</td>
+          <td style="text-align: center;"><span class="tp-badge-sm">${entry.highestTp || 'TP3'}</span></td>
+          <td style="text-align: center; font-size: 0.78rem; color: #94a3b8; white-space: nowrap;">${entry.date}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function resetScoreboard() {
+      const confirmReset = confirm("AMARAN GURU:\n\nAdakah anda pasti mahu memadamkan SEMUA rekod markah dan TP di dalam Scoreboard?\n\nTindakan ini sesuai digunakan sebelum sesi ujian baharu bermula.");
+      if (confirmReset) {
+        localStorage.removeItem(STORAGE_KEY);
+        renderScoreboardUI();
+        alert("Papan markah telah berjaya di-reset! Semua rekod markah telah dipadamkan.");
+      }
+    }
+
+    /* =========================================================
+       3. AUDIO ENGINE
+       ========================================================= */
+    class SoundEngine {
+      constructor() { this.ctx = null; }
+      init() {
+        try {
+          if (!this.ctx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioContext();
+          }
+          if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+        } catch (e) {}
+      }
+      playPop() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.exponentialRampToValueAtTime(110, now + 0.08);
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.08);
+        } catch (e) {}
+      }
+      playCorrect() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          [523.25, 659.25, 783.99, 1046.5].forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.06);
+            gain.gain.setValueAtTime(0.22, now + idx * 0.06);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.06 + 0.35);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.06);
+            osc.stop(now + idx * 0.06 + 0.35);
+          });
+        } catch (e) {}
+      }
+      playWrong() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.linearRampToValueAtTime(75, now + 0.28);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.linearRampToValueAtTime(0.01, now + 0.28);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.28);
+        } catch (e) {}
+      }
+      playGameOver() {
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          [300, 260, 220, 160].forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+            gain.gain.setValueAtTime(0.25, now + idx * 0.12);
+            gain.gain.linearRampToValueAtTime(0.01, now + idx * 0.12 + 0.2);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now + idx * 0.12);
+            osc.stop(now + idx * 0.12 + 0.2);
+          });
+        } catch (e) {}
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    /* =========================================================
+       4. GAME STATE (20 SOALAN, 60S / 1 MINIT, 5 NYAWA)
+       ========================================================= */
+    const state = {
+      currentPlayer: "KUMPULAN ABU BAKAR AS-SIDDIQ",
+      gameMode: "group", // "individual" or "group" (DEFAULT: group)
+      score: 0,
+      combo: 1,
+      maxCombo: 1,
+      currentQuestionIdx: 0,
+      totalQuestions: 20,
+      totalDuration: 90, // 90s for group, 60s for individual
+      timeLeft: 90,
+      globalTimer: null,
+      lives: 5,
+      isGameRunning: false,
+      totalPopped: 0,
+      correctPopped: 0,
+      correctByTP: { 'TP3': 0, 'TP4': 0, 'TP5': 0 },
+      privateMode: false, // Default: Mod Kamera Penuh (papar video & wajah pemain)
+      showCameraFeed: true,
+      lastPinchTime: 0
+    };
+
+    let cursorX = window.innerWidth / 2;
+    let cursorY = window.innerHeight / 2;
+    let isHandPresent = false;
+    let isPinching = false;
+    let rawLandmarks = null;
+    let pinchRipples = [];
+    let ambientParticles = [];
+
+    for (let i = 0; i < 40; i++) {
+      ambientParticles.push({
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        radius: 1 + Math.random() * 2.5,
+        speedY: 0.25 + Math.random() * 0.55,
+        alpha: 0.15 + Math.random() * 0.5,
+        pulseSpeed: 0.02 + Math.random() * 0.03,
+        pulseAngle: Math.random() * Math.PI * 2
+      });
+    }
+
+    /* =========================================================
+       5. CANVAS SETUP
+       ========================================================= */
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const video = document.getElementById('webcam-video');
+    const previewCanvas = document.getElementById('cam-preview-canvas');
+    const previewCtx = previewCanvas.getContext('2d');
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      previewCanvas.width = 160;
+      previewCanvas.height = 100;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    /* =========================================================
+       6. BUBBLE & PARTICLE PHYSICS (2 BUIH BESAR: KIRI & KANAN)
+       ========================================================= */
+    class Bubble {
+      constructor(letter, text, isCorrect, x, y, radius) {
+        this.letter = letter;
+        this.text = text;
+        this.isCorrect = isCorrect;
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.baseX = x;
+        this.vx = (Math.random() - 0.5) * 0.5;
+        this.vy = -(0.5 + Math.random() * 0.4);
+        this.wobblePhase = Math.random() * Math.PI * 2;
+        this.wobbleSpeed = 0.025 + Math.random() * 0.02;
+        this.scale = 0.1;
+      }
+
+      update() {
+        if (this.scale < 1) {
+          this.scale += 0.09;
+          if (this.scale > 1) this.scale = 1;
+        }
+
+        this.wobblePhase += this.wobbleSpeed;
+        this.x = this.baseX + Math.sin(this.wobblePhase) * 16;
+        this.y += this.vy;
+
+        // Loop from bottom if floated too high
+        if (this.y + this.radius < 210) {
+          this.y = canvas.height + this.radius + Math.random() * 40;
+        }
+      }
+
+      draw(context) {
+        context.save();
+        context.translate(this.x, this.y);
+        context.scale(this.scale, this.scale);
+
+        const r = this.radius;
+
+        // 3D Glass Radial Gradient
+        const grad = context.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.1, 0, 0, r);
+        grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+        grad.addColorStop(0.28, 'rgba(56, 189, 248, 0.48)');
+        grad.addColorStop(0.75, 'rgba(14, 165, 233, 0.22)');
+        grad.addColorStop(0.95, 'rgba(2, 132, 199, 0.5)');
+        grad.addColorStop(1, 'rgba(56, 189, 248, 0.9)');
+
+        context.beginPath();
+        context.arc(0, 0, r, 0, Math.PI * 2);
+        context.fillStyle = grad;
+        context.fill();
+
+        // Glowing outer stroke
+        context.lineWidth = 4;
+        context.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        context.shadowColor = '#38bdf8';
+        context.shadowBlur = 22;
+        context.stroke();
+
+        // Specular Reflection (Top Left)
+        context.shadowBlur = 0;
+        context.beginPath();
+        context.ellipse(-r * 0.38, -r * 0.38, r * 0.32, r * 0.16, -Math.PI / 4, 0, Math.PI * 2);
+        context.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        context.fill();
+
+        // Letter Badge Header (e.g. [A] vs [B]) - Extra Prominent
+        context.fillStyle = '#fbbf24';
+        context.font = 'bold 30px "Segoe UI", system-ui, sans-serif';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        context.shadowBlur = 7;
+        context.fillText(`[${this.letter}]`, 0, -r * 0.58);
+
+        // Text Drawing with Auto-Wrap (Significantly Enlarged & High-Contrast Stroke)
+        context.fillStyle = '#ffffff';
+        context.shadowColor = 'rgba(0, 0, 0, 0.95)';
+        context.shadowBlur = 8;
+
+        let fontSize = 26;
+        let lineHeight = 33;
+        if (this.text.length > 50) {
+          fontSize = 21;
+          lineHeight = 27;
+        } else if (this.text.length > 25) {
+          fontSize = 24;
+          lineHeight = 31;
+        } else {
+          fontSize = 28;
+          lineHeight = 36;
+        }
+
+        context.font = `bold ${fontSize}px "Segoe UI", system-ui, sans-serif`;
+        this.drawWrappedText(context, this.text, 0, 12, r * 1.65, lineHeight);
+
+        context.restore();
+      }
+
+      drawWrappedText(context, text, x, y, maxWidth, lineHeight) {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = words[0];
+
+        for (let i = 1; i < words.length; i++) {
+          const testLine = currentLine + ' ' + words[i];
+          const metrics = context.measureText(testLine);
+          if (metrics.width > maxWidth) {
+            lines.push(currentLine);
+            currentLine = words[i];
+          } else {
+            currentLine = testLine;
+          }
+        }
+        lines.push(currentLine);
+
+        const startY = y - ((lines.length - 1) * lineHeight) / 2;
+        for (let i = 0; i < lines.length; i++) {
+          // Sharp dark outline stroke behind text for 100% clarity in any lighting
+          context.lineWidth = 3.5;
+          context.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+          context.strokeText(lines[i], x, startY + (i * lineHeight));
+          context.fillText(lines[i], x, startY + (i * lineHeight));
+        }
+      }
+
+      containsPoint(px, py) {
+        const dx = px - this.x;
+        const dy = py - this.y;
+        return (dx * dx + dy * dy) <= (this.radius * this.radius);
+      }
+    }
+
+    class Particle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 2.5 + Math.random() * 6;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.radius = 3 + Math.random() * 5;
+        this.color = color;
+        this.alpha = 1;
+        this.decay = 0.03 + Math.random() * 0.03;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += 0.12;
+        this.alpha -= this.decay;
+      }
+      draw(context) {
+        if (this.alpha <= 0) return;
+        context.save();
+        context.globalAlpha = this.alpha;
+        context.beginPath();
+        context.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        context.fillStyle = this.color;
+        context.shadowColor = this.color;
+        context.shadowBlur = 10;
+        context.fill();
+        context.restore();
+      }
+    }
+
+    let bubbles = [];
+    let particles = [];
+
+    // HANYA 2 JAWAPAN SAHAJA: 1 BETUL, 1 SALAH (KIRI [A] vs KANAN [B])
+    function spawnQuestionBubbles() {
+      bubbles = [];
+      const q = currentQuizSet[state.currentQuestionIdx];
+
+      // Pilih 1 pengganggu secara rawak daripada 3 pilihan salah
+      const randomDistractor = q.distractors[Math.floor(Math.random() * q.distractors.length)];
+
+      const twoOptions = [
+        { text: q.correct, isCorrect: true },
+        { text: randomDistractor, isCorrect: false }
+      ];
+
+      // Shuffle 50/50 sama ada Betul di kiri [A] atau kanan [B]
+      twoOptions.sort(() => Math.random() - 0.5);
+
+      const radius = Math.min(160, Math.max(120, canvas.width * 0.105));
+      
+      // Kedudukan Kiri [A] dan Kanan [B]
+      const leftX = canvas.width * 0.28;
+      const rightX = canvas.width * 0.72;
+      const startY = canvas.height - 110;
+
+      bubbles.push(new Bubble('A', twoOptions[0].text, twoOptions[0].isCorrect, leftX, startY, radius));
+      bubbles.push(new Bubble('B', twoOptions[1].text, twoOptions[1].isCorrect, rightX, startY, radius));
+    }
+
+    function createExplosion(x, y, isCorrect) {
+      sound.playPop();
+      const color = isCorrect ? '#34d399' : '#f87171';
+      for (let i = 0; i < 32; i++) {
+        particles.push(new Particle(x, y, color));
+      }
+    }
+
+    /* =========================================================
+       7. HIT TESTING & MEKANIK NYAWA
+       ========================================================= */
+    let isTransitioningQuestion = false;
+
+    function checkPinchHit(x, y) {
+      if (isTransitioningQuestion) return;
+      const now = Date.now();
+      if (now - state.lastPinchTime < 320) return;
+      state.lastPinchTime = now;
+
+      for (let i = bubbles.length - 1; i >= 0; i--) {
+        const b = bubbles[i];
+        if (b.containsPoint(x, y)) {
+          isTransitioningQuestion = true;
+          state.totalPopped++;
+          createExplosion(b.x, b.y, b.isCorrect);
+
+          // Kosongkan semua buih serta-merta supaya pemain tidak boleh cubit jawapan kedua bagi soalan yang sama
+          bubbles = [];
+
+          if (b.isCorrect) {
+            // JAWAPAN BETUL -> TAMBAH SKOR & TERUS KE SOALAN SETERUSNYA
+            sound.playCorrect();
+            state.correctPopped++;
+            const currentQ = currentQuizSet[state.currentQuestionIdx];
+            if (currentQ) {
+              state.correctByTP[currentQ.tp] = (state.correctByTP[currentQ.tp] || 0) + 1;
+            }
+
+            state.score += 100 * state.combo;
+            state.combo++;
+            if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+            showFeedback(true, `TEPAT SEKALI! +${100 * (state.combo - 1)} MATA 🌟`);
+            updateHUD();
+
+            setTimeout(() => {
+              nextQuestion();
+            }, 500);
+          } else {
+            // JAWAPAN SALAH -> TOLAK 1 NYAWA & TERUS TUKAR KE SOALAN SETERUSNYA!
+            sound.playWrong();
+            state.combo = 1;
+            state.lives--;
+            updateHUD();
+
+            if (state.lives <= 0) {
+              // TERSINGKIR!
+              showFeedback(false, "💀 NYAWA HABIS! ANDA TERSINGKIR!");
+              setTimeout(() => {
+                endGame(true, false);
+              }, 750);
+            } else {
+              showFeedback(false, `SALAH! BAKI NYAWA: ${state.lives} 💔 (TUKAR SOALAN)`);
+              setTimeout(() => {
+                nextQuestion();
+              }, 550);
+            }
+          }
+
+          break;
+        }
+      }
+    }
+
+    function showFeedback(isCorrect, text) {
+      const popup = document.getElementById('feedback-popup');
+      popup.textContent = text;
+      popup.className = isCorrect ? 'correct show' : 'wrong show';
+      setTimeout(() => {
+        popup.className = '';
+      }, 700);
+    }
+
+    function renderLivesString(lives) {
+      let str = '';
+      for (let i = 0; i < 5; i++) {
+        str += i < lives ? '❤️' : '🖤';
+      }
+      return `${str} (${lives}/5)`;
+    }
+
+    /* =========================================================
+       8. GLOBAL 60-SECOND (1 MINUTE) COUNTDOWN TIMER (20 SOALAN)
+       ========================================================= */
+    function updateTimerUI() {
+      document.getElementById('timer-val').textContent = `${state.timeLeft}s`;
+      const bar = document.getElementById('question-timer-bar');
+      const pct = (state.timeLeft / state.totalDuration) * 100;
+      bar.style.width = `${Math.max(0, pct)}%`;
+      if (state.timeLeft <= 12) {
+        bar.className = 'danger';
+      } else {
+        bar.className = '';
+      }
+    }
+
+    function startQuestion() {
+      isTransitioningQuestion = false;
+      if (state.currentQuestionIdx >= currentQuizSet.length) {
+        endGame(false, false);
+        return;
+      }
+
+      const q = currentQuizSet[state.currentQuestionIdx];
+      const cfg = TOPIC_CONFIG[activeTopic] || TOPIC_CONFIG['puasa_t2'];
+      if (state.gameMode === 'group') {
+        document.getElementById('question-category').textContent = `${cfg.bannerHeader} • ${state.currentPlayer} • GILIRAN AHLI: SOALAN ${state.currentQuestionIdx + 1} / ${state.totalQuestions}`;
+      } else {
+        document.getElementById('question-category').textContent = `${cfg.bannerHeader} • SOALAN ${state.currentQuestionIdx + 1} / ${state.totalQuestions}`;
+      }
+      document.getElementById('question-tp-badge').textContent = `ARAS ${q.tp}`;
+      document.getElementById('question-text').textContent = q.question;
+      
+      spawnQuestionBubbles();
+      updateHUD();
+    }
+
+    function nextQuestion() {
+      state.currentQuestionIdx++;
+      if (state.currentQuestionIdx >= state.totalQuestions) {
+        endGame(false, false);
+      } else {
+        startQuestion();
+      }
+    }
+
+    function updateHUD() {
+      const hudPlayerTitle = document.getElementById('hud-player-title');
+      const hudTurnTitle = document.getElementById('hud-turn-title');
+      if (state.gameMode === 'group') {
+        if (hudPlayerTitle) hudPlayerTitle.textContent = 'Pasukan Tokoh';
+        if (hudTurnTitle) hudTurnTitle.textContent = 'Giliran Ahli';
+      } else {
+        if (hudPlayerTitle) hudPlayerTitle.textContent = 'Pemain Individu';
+        if (hudTurnTitle) hudTurnTitle.textContent = 'Soalan';
+      }
+
+      document.getElementById('player-badge').textContent = state.currentPlayer;
+      document.getElementById('level-val').textContent = `${state.currentQuestionIdx + 1} / ${state.totalQuestions}`;
+      document.getElementById('score-val').textContent = state.score;
+      document.getElementById('combo-val').textContent = `x${state.combo}`;
+      document.getElementById('lives-val').textContent = renderLivesString(state.lives);
+      updateTimerUI();
+    }
+
+    function calculateSessionTP() {
+      const correctTP3 = state.correctByTP['TP3'] || 0;
+      const correctTP4 = state.correctByTP['TP4'] || 0;
+      const correctTP5 = state.correctByTP['TP5'] || 0;
+      const totalCorrect = state.correctPopped;
+
+      if (totalCorrect >= 17 && correctTP5 >= 4) return 'TP6';
+      if (correctTP5 >= 3 || (totalCorrect >= 14 && state.score >= 1200)) return 'TP5';
+      if (correctTP4 >= 4 || (totalCorrect >= 10 && state.score >= 800)) return 'TP4';
+      if (correctTP3 >= 4 || state.score >= 400) return 'TP3';
+      return 'TP2';
+    }
+
+    function startGame() {
+      state.gameMode = activeGameMode;
+      let chosenName = "";
+
+      if (state.gameMode === 'group') {
+        const groupInput = document.getElementById('group-name-input');
+        const groupSelectElem = document.getElementById('group-select');
+        chosenName = (groupInput && groupInput.value.trim()) ? groupInput.value.trim().toUpperCase() : (groupSelectElem.value || '').trim();
+
+        if (!chosenName) {
+          alert("Sila pilih atau taip nama kumpulan pasukan terlebih dahulu!");
+          if (groupInput) groupInput.focus();
+          return;
+        }
+
+        state.currentPlayer = chosenName;
+        state.totalDuration = 90; // 1 minit 30 saat untuk Mod Kumpulan Tournament Battle
+      } else {
+        const nameInput = document.getElementById('profile-name-input');
+        const studentSelectElem = document.getElementById('student-select');
+        chosenName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim().toUpperCase() : (studentSelectElem.value || '').trim();
+
+        if (!chosenName || chosenName.includes('Sila Pilih')) {
+          alert("Sila pilih nama daripada senarai atau taip nama baharu pada ruangan nama terlebih dahulu!");
+          if (nameInput) nameInput.focus();
+          return;
+        }
+
+        // Jika nama ditaip terus tanpa tekan butang 'Tambah Nama', simpan secara automatik ke dalam senarai pemain
+        let cList = getCustomList();
+        if (!cList.some(n => n.toLowerCase() === chosenName.toLowerCase())) {
+          cList.push(chosenName);
+          saveCustomList(cList);
+          populateProfileDropdown(chosenName);
+        }
+
+        state.currentPlayer = chosenName;
+        state.totalDuration = 60; // 60 saat (1 minit) untuk Mod Individu
+      }
+
+      sound.init();
+      document.getElementById('modal-start').style.display = 'none';
+      document.getElementById('modal-gameover').style.display = 'none';
+      document.getElementById('modal-scoreboard').style.display = 'none';
+
+      // Jana 20 soalan seimbang (8 TP3, 7 TP4, 5 TP5)
+      currentQuizSet = generateBalancedQuiz();
+
+      state.score = 0;
+      state.combo = 1;
+      state.maxCombo = 1;
+      state.currentQuestionIdx = 0;
+      state.lives = 5;
+      state.timeLeft = state.totalDuration;
+      state.totalPopped = 0;
+      state.correctPopped = 0;
+      state.correctByTP = { 'TP3': 0, 'TP4': 0, 'TP5': 0 };
+      state.isGameRunning = true;
+
+      startQuestion();
+
+      if (state.globalTimer) clearInterval(state.globalTimer);
+      state.globalTimer = setInterval(() => {
+        if (!state.isGameRunning) return;
+        state.timeLeft--;
+        updateTimerUI();
+
+        if (state.timeLeft <= 0) {
+          clearInterval(state.globalTimer);
+          sound.playGameOver();
+          showFeedback(false, "⏰ MASA TAMAT!");
+          setTimeout(() => {
+            endGame(false, true);
+          }, 800);
+        }
+      }, 1000);
+    }
+
+    function endGame(isEliminated = false, isTimeUp = false) {
+      state.isGameRunning = false;
+      if (state.globalTimer) clearInterval(state.globalTimer);
+
+      if (isEliminated || isTimeUp) {
+        sound.playGameOver();
+      }
+
+      // Bonus masa jika selesai 20 soalan sebelum masa tamat
+      if (!isEliminated && !isTimeUp && state.timeLeft > 0) {
+        const timeBonus = state.timeLeft * 20;
+        state.score += timeBonus;
+      }
+
+      const accuracy = state.totalPopped > 0
+        ? Math.round((state.correctPopped / state.totalPopped) * 100)
+        : 0;
+
+      const sessionTp = calculateSessionTP();
+
+      const { personalBest, highestTp } = saveStudentScore(state.currentPlayer, state.score, accuracy, sessionTp);
+
+      const endTitle = document.getElementById('end-title');
+      const endSubtitle = document.getElementById('end-subtitle');
+      const statusBadge = document.getElementById('end-status-badge');
+
+      if (state.gameMode === 'group') {
+        if (isEliminated) {
+          statusBadge.textContent = "TOURNAMENT BATTLE: TERSINGKIR (NYAWA HABIS)";
+          statusBadge.style.background = "rgba(239, 68, 68, 0.25)";
+          statusBadge.style.color = "#f87171";
+          statusBadge.style.borderColor = "rgba(239, 68, 68, 0.4)";
+          endTitle.textContent = `💀 Pasukan Tersingkir!`;
+          endTitle.style.background = "linear-gradient(to right, #ef4444, #f59e0b)";
+          endTitle.style.webkitBackgroundClip = "text";
+          endSubtitle.textContent = `Nyawa kumpulan telah habis pada soalan ke-${state.currentQuestionIdx + 1}. Markah & TP pasukan tetap direkodkan ke Scoreboard Kumpulan!`;
+        } else if (isTimeUp) {
+          statusBadge.textContent = "TOURNAMENT BATTLE: MASA 1:30 TAMAT";
+          statusBadge.style.background = "rgba(245, 158, 11, 0.25)";
+          statusBadge.style.color = "#fbbf24";
+          statusBadge.style.borderColor = "rgba(245, 158, 11, 0.4)";
+          endTitle.textContent = `⏰ Masa Tournament Habis!`;
+          endTitle.style.background = "linear-gradient(to right, #f59e0b, #fbbf24)";
+          endTitle.style.webkitBackgroundClip = "text";
+          endSubtitle.textContent = `Masa 1 minit 30 saat telah tamat. Pasukan sempat menjawab ${state.currentQuestionIdx} daripada ${state.totalQuestions} soalan. Markah & TP pasukan direkodkan!`;
+        } else {
+          statusBadge.textContent = "🏆 TOURNAMENT BATTLE: 20 SOALAN SELESAI!";
+          statusBadge.style.background = "rgba(245, 158, 11, 0.25)";
+          statusBadge.style.color = "#fbbf24";
+          statusBadge.style.borderColor = "rgba(251, 191, 36, 0.5)";
+          endTitle.textContent = `🏆 Tahniah ${state.currentPlayer}!`;
+          endTitle.style.background = "linear-gradient(to right, #fbbf24, #34d399)";
+          endTitle.style.webkitBackgroundClip = "text";
+          endSubtitle.textContent = `Tahniah pasukan! Anda berjaya menjawab 20 soalan secara bergilir-gilir dengan baki masa ${state.timeLeft} saat! (+${state.timeLeft * 20} Bonus Masa)`;
+        }
+      } else {
+        if (isEliminated) {
+          statusBadge.textContent = "STATUS: TERSINGKIR (NYAWA HABIS)";
+          statusBadge.style.background = "rgba(239, 68, 68, 0.25)";
+          statusBadge.style.color = "#f87171";
+          statusBadge.style.borderColor = "rgba(239, 68, 68, 0.4)";
+          endTitle.textContent = "💀 Anda Telah Tersingkir!";
+          endTitle.style.background = "linear-gradient(to right, #ef4444, #f59e0b)";
+          endTitle.style.webkitBackgroundClip = "text";
+          endSubtitle.textContent = `Nyawa anda telah habis (5 kali salah) pada soalan ke-${state.currentQuestionIdx + 1}. Markah & TP anda tetap direkodkan ke Scoreboard!`;
+        } else if (isTimeUp) {
+          statusBadge.textContent = "STATUS: MASA CABARAN TAMAT";
+          statusBadge.style.background = "rgba(245, 158, 11, 0.25)";
+          statusBadge.style.color = "#fbbf24";
+          statusBadge.style.borderColor = "rgba(245, 158, 11, 0.4)";
+          endTitle.textContent = "⏰ Masa Cabaran Telah Habis!";
+          endTitle.style.background = "linear-gradient(to right, #f59e0b, #fbbf24)";
+          endTitle.style.webkitBackgroundClip = "text";
+          endSubtitle.textContent = `Masa telah tamat. Anda sempat menjawab ${state.currentQuestionIdx} daripada ${state.totalQuestions} soalan. Markah & TP tetap direkodkan!`;
+        } else {
+          statusBadge.textContent = "STATUS: 20 SOALAN BERJAYA DISELESAIKAN!";
+          statusBadge.style.background = "rgba(16, 185, 129, 0.2)";
+          statusBadge.style.color = "#34d399";
+          statusBadge.style.borderColor = "rgba(52, 211, 153, 0.35)";
+          endTitle.textContent = "⚡ Hebat! 20 Soalan Selesai!";
+          endTitle.style.background = "linear-gradient(to right, #34d399, #fbbf24)";
+          endTitle.style.webkitBackgroundClip = "text";
+          endSubtitle.textContent = `Tahniah! Anda berjaya menjawab kesemua 20 soalan dengan baki masa ${state.timeLeft} saat! (+${state.timeLeft * 20} Bonus Masa)`;
+        }
+      }
+
+      document.getElementById('end-student-name').textContent = `Pemain: ${state.currentPlayer}`;
+      document.getElementById('end-score').textContent = state.score;
+      document.getElementById('end-answered').textContent = `${state.currentQuestionIdx >= state.totalQuestions ? state.totalQuestions : state.currentQuestionIdx} / ${state.totalQuestions}`;
+      document.getElementById('end-remaining-lives').textContent = `${state.lives} / 5`;
+      document.getElementById('end-personal-best').textContent = personalBest;
+      document.getElementById('pbd-level').textContent = `Tahap Penguasaan Sesi Ini: ${sessionTp}`;
+      document.getElementById('end-highest-tp-text').textContent = `🎖️ Rekod TP Tertinggi Anda di Scoreboard: ${highestTp}`;
+
+      document.getElementById('modal-gameover').style.display = 'flex';
+    }
+
+    /* =========================================================
+       9. MEDIAPIPE HAND TRACKING ENGINE
+       ========================================================= */
+    const dotStatus = document.getElementById('dot-status');
+    const txtStatus = document.getElementById('txt-status');
+    const pinchMeterBar = document.getElementById('pinch-meter-bar');
+
+    let handsDetector = null;
+    let cameraRunning = false;
+
+    async function initWebcamAndAI() {
+      txtStatus.textContent = "Meminta kebenaran kamera...";
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          },
+          audio: false
+        });
+
+        video.srcObject = stream;
+        await video.play();
+        cameraRunning = true;
+        dotStatus.className = 'status-dot dot-ready';
+        txtStatus.textContent = "Kamera Aktif! Memuatkan AI Tangan...";
+
+        if (typeof Hands !== 'undefined') {
+          handsDetector = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+          });
+
+          handsDetector.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.65,
+            minTrackingConfidence: 0.65
+          });
+
+          handsDetector.onResults(onHandResults);
+
+          const processFrame = async () => {
+            if (cameraRunning && video.readyState >= 2 && handsDetector) {
+              try {
+                await handsDetector.send({ image: video });
+              } catch (err) {}
+            }
+            requestAnimationFrame(processFrame);
+          };
+          requestAnimationFrame(processFrame);
+
+          txtStatus.textContent = "AI Siap! Angkat tangan anda di depan kamera.";
+        } else {
+          txtStatus.textContent = "Kamera Aktif (Mod Tetikus/Klik Aktif)";
+        }
+
+      } catch (err) {
+        console.warn("Kamera tidak dapat diakses atau disekat:", err);
+        dotStatus.className = 'status-dot';
+        txtStatus.textContent = "Kamera tidak aktif. Boleh guna tetikus/trackpad!";
+      }
+    }
+
+    function onHandResults(results) {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        rawLandmarks = landmarks;
+        isHandPresent = true;
+
+        const thumb = landmarks[4];
+        const index = landmarks[8];
+
+        const thumbX = (1 - thumb.x) * canvas.width;
+        const thumbY = thumb.y * canvas.height;
+        const indexX = (1 - index.x) * canvas.width;
+        const indexY = index.y * canvas.height;
+
+        cursorX = (thumbX + indexX) / 2;
+        cursorY = (thumbY + indexY) / 2;
+
+        const dist2D = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+        const pixelDist = Math.hypot(thumbX - indexX, thumbY - indexY);
+
+        const maxDist = 0.25;
+        const meterVal = Math.max(0, Math.min(100, Math.round((1 - (dist2D / maxDist)) * 100)));
+        pinchMeterBar.style.width = `${meterVal}%`;
+
+        const wasPinching = isPinching;
+        isPinching = dist2D < 0.075 || pixelDist < 65;
+
+        if (isPinching) {
+          pinchMeterBar.style.background = '#f59e0b';
+          dotStatus.className = 'status-dot dot-pinch';
+          txtStatus.textContent = "🟣 PINCH! Menangkap Buih...";
+
+          if (!wasPinching) {
+            triggerPinchVisualEffect(cursorX, cursorY);
+            if (state.isGameRunning) {
+              checkPinchHit(cursorX, cursorY);
+            }
+          }
+        } else {
+          pinchMeterBar.style.background = '#38bdf8';
+          dotStatus.className = 'status-dot dot-hand';
+          txtStatus.textContent = state.privateMode 
+            ? "🟢 Tangan Dikesan (Mod Privasi: Cubit Untuk Tangkap)" 
+            : "🟢 Tangan Dikesan (Cubit Jari Untuk Tangkap)";
+        }
+
+      } else {
+        isHandPresent = false;
+        isPinching = false;
+        rawLandmarks = null;
+        pinchMeterBar.style.width = '0%';
+        dotStatus.className = cameraRunning ? 'status-dot dot-ready' : 'status-dot';
+        txtStatus.textContent = cameraRunning ? "Angkat tangan di depan kamera..." : "Gunakan tetikus/klik...";
+      }
+    }
+
+    /* =========================================================
+       10. MOUSE / TOUCH LISTENERS
+       ========================================================= */
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isHandPresent) {
+        cursorX = e.clientX;
+        cursorY = e.clientY;
+      }
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      cursorX = e.clientX;
+      cursorY = e.clientY;
+      if (state.isGameRunning) {
+        checkPinchHit(cursorX, cursorY);
+      }
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length > 0) {
+        cursorX = e.touches[0].clientX;
+        cursorY = e.touches[0].clientY;
+        if (state.isGameRunning) {
+          checkPinchHit(cursorX, cursorY);
+        }
+      }
+    }, { passive: true });
+
+    /* =========================================================
+       11. RENDER LOOP & ANIMASI PINCH (MOD PRIVASI: SENSOR SAHAJA)
+       ========================================================= */
+    const HAND_CONNECTIONS = [
+      [0, 1], [1, 2], [2, 3], [3, 4],       // Ibu jari
+      [0, 5], [5, 6], [6, 7], [7, 8],       // Jari telunjuk
+      [9, 10], [10, 11], [11, 12],          // Jari hantu
+      [13, 14], [14, 15], [15, 16],         // Jari manis
+      [0, 17], [17, 18], [18, 19], [19, 20],// Jari kelengkeng
+      [5, 9], [9, 13], [13, 17], [0, 5], [0, 9], [0, 13], [0, 17] // Mesh tapak tangan
+    ];
+
+    function triggerPinchVisualEffect(x, y) {
+      // Hasilkan gelombang kejutan cubitan (Pinch Shockwaves)
+      pinchRipples.push({ x, y, r: 12, maxR: 75, alpha: 1.0, color: '#f59e0b', width: 4.5 });
+      pinchRipples.push({ x, y, r: 6, maxR: 45, alpha: 0.85, color: '#fbbf24', width: 2.5 });
+      
+      // Hasilkan percikan zarah (Spark Particles)
+      for (let i = 0; i < 14; i++) {
+        particles.push(new Particle(x, y, i % 2 === 0 ? '#f59e0b' : '#38bdf8'));
+      }
+    }
+
+    function drawHandSkeleton(context) {
+      if (!rawLandmarks || !isHandPresent) return;
+
+      context.save();
+
+      // 1. Lukis garisan tulang rangka tangan (Holographic Cyber Hand Bones)
+      context.lineWidth = isPinching ? 3.5 : 2.5;
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.strokeStyle = isPinching ? 'rgba(245, 158, 11, 0.75)' : 'rgba(56, 189, 248, 0.55)';
+      context.shadowColor = isPinching ? '#f59e0b' : '#38bdf8';
+      context.shadowBlur = isPinching ? 15 : 8;
+
+      context.beginPath();
+      for (let i = 0; i < HAND_CONNECTIONS.length; i++) {
+        const [a, b] = HAND_CONNECTIONS[i];
+        if (rawLandmarks[a] && rawLandmarks[b]) {
+          const ax = (1 - rawLandmarks[a].x) * canvas.width;
+          const ay = rawLandmarks[a].y * canvas.height;
+          const bx = (1 - rawLandmarks[b].x) * canvas.width;
+          const by = rawLandmarks[b].y * canvas.height;
+          context.moveTo(ax, ay);
+          context.lineTo(bx, by);
+        }
+      }
+      context.stroke();
+
+      // 2. Lukis setiap sendi jari (Joint Nodes)
+      for (let i = 0; i < rawLandmarks.length; i++) {
+        const pt = rawLandmarks[i];
+        const px = (1 - pt.x) * canvas.width;
+        const py = pt.y * canvas.height;
+        const isTip = (i === 4 || i === 8);
+        const isOtherTip = (i === 12 || i === 16 || i === 20);
+
+        context.beginPath();
+        const nodeRadius = isTip ? (isPinching ? 10 : 8) : (isOtherTip ? 5 : 3.5);
+        context.arc(px, py, nodeRadius, 0, Math.PI * 2);
+
+        if (isTip) {
+          context.fillStyle = isPinching ? '#f59e0b' : '#38bdf8';
+          context.shadowColor = isPinching ? '#f59e0b' : '#38bdf8';
+          context.shadowBlur = 18;
+        } else {
+          context.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          context.shadowColor = '#38bdf8';
+          context.shadowBlur = 6;
+        }
+        context.fill();
+
+        // Lingkaran aura berdenyut di hujung ibu jari & jari telunjuk
+        if (isTip) {
+          context.beginPath();
+          context.arc(px, py, nodeRadius + (isPinching ? 5 : 3.5), 0, Math.PI * 2);
+          context.strokeStyle = isPinching ? 'rgba(251, 191, 36, 0.9)' : 'rgba(56, 189, 248, 0.75)';
+          context.lineWidth = 2;
+          context.stroke();
+        }
+      }
+
+      // 3. ANIMASI SINARAN & LASER PINCH ANTARA IBU JARI & JARI TELUNJUK
+      const thumb = rawLandmarks[4];
+      const index = rawLandmarks[8];
+      const tx = (1 - thumb.x) * canvas.width;
+      const ty = thumb.y * canvas.height;
+      const ix = (1 - index.x) * canvas.width;
+      const iy = index.y * canvas.height;
+      const midX = (tx + ix) / 2;
+      const midY = (ty + iy) / 2;
+      const dist = Math.hypot(tx - ix, ty - iy);
+
+      context.beginPath();
+      context.moveTo(tx, ty);
+
+      if (isPinching) {
+        // Jagged electric zap / lightning arc ketika mencubit
+        const jitter = 6;
+        const jx = midX + (Math.random() - 0.5) * jitter;
+        const jy = midY + (Math.random() - 0.5) * jitter;
+        context.lineTo(jx, jy);
+        context.lineTo(ix, iy);
+        context.lineWidth = 6;
+        context.strokeStyle = '#f59e0b';
+        context.shadowColor = '#fbbf24';
+        context.shadowBlur = 24;
+      } else {
+        context.lineTo(ix, iy);
+        context.lineWidth = dist < 120 ? 4 : 2;
+        context.strokeStyle = dist < 120 ? 'rgba(245, 158, 11, 0.8)' : 'rgba(56, 189, 248, 0.65)';
+        context.shadowColor = '#38bdf8';
+        context.shadowBlur = 12;
+      }
+      context.stroke();
+
+      // Denyutan di titik tengah cubitan
+      context.beginPath();
+      context.arc(midX, midY, isPinching ? 8 : 4.5, 0, Math.PI * 2);
+      context.fillStyle = isPinching ? '#ffffff' : '#38bdf8';
+      context.fill();
+
+      context.restore();
+    }
+
+    function drawCursorReticle(context) {
+      context.save();
+      context.translate(cursorX, cursorY);
+
+      const ringRadius = isPinching ? 22 : 34;
+      const ringColor = isPinching ? '#f59e0b' : '#38bdf8';
+
+      // 1. Lingkaran sasaran (Target Reticle)
+      context.beginPath();
+      context.arc(0, 0, ringRadius, 0, Math.PI * 2);
+      context.strokeStyle = ringColor;
+      context.lineWidth = isPinching ? 5 : 2.5;
+      context.shadowColor = ringColor;
+      context.shadowBlur = isPinching ? 25 : 12;
+      context.stroke();
+
+      // 2. Tanda Kurungan Pinch Caliper di 4 penjuru
+      const bLen = isPinching ? 8 : 12;
+      const bOff = ringRadius + 4;
+      context.strokeStyle = ringColor;
+      context.lineWidth = 2.5;
+      context.beginPath();
+      context.moveTo(-bOff, -bLen); context.lineTo(-bOff, bLen); // Kiri
+      context.moveTo(bOff, -bLen); context.lineTo(bOff, bLen);   // Kanan
+      context.moveTo(-bLen, -bOff); context.lineTo(bLen, -bOff); // Atas
+      context.moveTo(-bLen, bOff); context.lineTo(bLen, bOff);   // Bawah
+      context.stroke();
+
+      // 3. Titik sasaran tengah
+      context.beginPath();
+      context.arc(0, 0, isPinching ? 8 : 4.5, 0, Math.PI * 2);
+      context.fillStyle = '#ffffff';
+      context.shadowColor = ringColor;
+      context.shadowBlur = 15;
+      context.fill();
+
+      // 4. Lencana teks status di bawah reticle
+      context.font = 'bold 12px system-ui, -apple-system, sans-serif';
+      context.fillStyle = ringColor;
+      context.textAlign = 'center';
+      context.shadowBlur = 8;
+      if (isPinching) {
+        context.fillText('💥 PINCH!', 0, ringRadius + 22);
+      } else if (isHandPresent) {
+        context.fillText('🤏 CUBIT', 0, ringRadius + 22);
+      } else {
+        context.fillText('🖱️ KLIK', 0, ringRadius + 22);
+      }
+
+      context.restore();
+    }
+
+    function drawMiniHandSkeleton(pCtx, w, h) {
+      if (!rawLandmarks || !isHandPresent) return;
+
+      pCtx.save();
+      pCtx.strokeStyle = isPinching ? '#f59e0b' : '#34d399';
+      pCtx.lineWidth = 1.8;
+      pCtx.shadowColor = isPinching ? '#f59e0b' : '#10b981';
+      pCtx.shadowBlur = 6;
+      pCtx.beginPath();
+      for (let i = 0; i < HAND_CONNECTIONS.length; i++) {
+        const [a, b] = HAND_CONNECTIONS[i];
+        if (rawLandmarks[a] && rawLandmarks[b]) {
+          const ax = (1 - rawLandmarks[a].x) * w;
+          const ay = rawLandmarks[a].y * h;
+          const bx = (1 - rawLandmarks[b].x) * w;
+          const by = rawLandmarks[b].y * h;
+          pCtx.moveTo(ax, ay);
+          pCtx.lineTo(bx, by);
+        }
+      }
+      pCtx.stroke();
+
+      for (let i = 0; i < rawLandmarks.length; i++) {
+        const pt = rawLandmarks[i];
+        const px = (1 - pt.x) * w;
+        const py = pt.y * h;
+        const isTip = (i === 4 || i === 8);
+        pCtx.beginPath();
+        pCtx.arc(px, py, isTip ? 3.5 : 2, 0, Math.PI * 2);
+        pCtx.fillStyle = isTip ? (isPinching ? '#f59e0b' : '#ffffff') : '#38bdf8';
+        pCtx.fill();
+      }
+
+      const thumb = rawLandmarks[4];
+      const index = rawLandmarks[8];
+      const tx = (1 - thumb.x) * w;
+      const ty = thumb.y * h;
+      const ix = (1 - index.x) * w;
+      const iy = index.y * h;
+      pCtx.beginPath();
+      pCtx.moveTo(tx, ty);
+      pCtx.lineTo(ix, iy);
+      pCtx.strokeStyle = isPinching ? '#f59e0b' : '#ffffff';
+      pCtx.lineWidth = 2.5;
+      pCtx.stroke();
+
+      pCtx.restore();
+    }
+
+    function renderPreview() {
+      if (!previewCanvas) return;
+      previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+      if (state.privateMode) {
+        // MOD PRIVASI: KAMERA TAK TUNJUK MUKA, HANYA SENSOR & RADAR TANGAN
+        previewCtx.fillStyle = '#071018';
+        previewCtx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+        // Garisan grid radar
+        previewCtx.strokeStyle = 'rgba(16, 185, 129, 0.18)';
+        previewCtx.lineWidth = 1;
+        previewCtx.beginPath();
+        previewCtx.moveTo(previewCanvas.width / 2, 0);
+        previewCtx.lineTo(previewCanvas.width / 2, previewCanvas.height);
+        previewCtx.moveTo(0, previewCanvas.height / 2);
+        previewCtx.lineTo(previewCanvas.width, previewCanvas.height / 2);
+        previewCtx.stroke();
+
+        // Bulatan radar
+        previewCtx.beginPath();
+        previewCtx.arc(previewCanvas.width / 2, previewCanvas.height / 2, previewCanvas.height * 0.38, 0, Math.PI * 2);
+        previewCtx.strokeStyle = 'rgba(16, 185, 129, 0.22)';
+        previewCtx.stroke();
+
+        if (isHandPresent && rawLandmarks) {
+          drawMiniHandSkeleton(previewCtx, previewCanvas.width, previewCanvas.height);
+        } else {
+          previewCtx.fillStyle = '#64748b';
+          previewCtx.font = 'bold 9px system-ui, -apple-system, sans-serif';
+          previewCtx.textAlign = 'center';
+          previewCtx.fillText(cameraRunning ? '✋ Sila angkat tangan' : 'Kamera Mati', previewCanvas.width / 2, previewCanvas.height / 2 + 3);
+        }
+      } else {
+        // MOD KAMERA PENUH: Papar muka / video bilik
+        if (cameraRunning && video.readyState >= 2) {
+          previewCtx.save();
+          previewCtx.translate(previewCanvas.width, 0);
+          previewCtx.scale(-1, 1);
+          previewCtx.drawImage(video, 0, 0, previewCanvas.width, previewCanvas.height);
+          previewCtx.restore();
+        }
+      }
+    }
+
+    function drawAmbientBackground(context) {
+      context.save();
+      for (let i = 0; i < ambientParticles.length; i++) {
+        const ap = ambientParticles[i];
+        ap.y -= ap.speedY;
+        ap.pulseAngle += ap.pulseSpeed;
+        if (ap.y < -10) {
+          ap.y = canvas.height + 10;
+          ap.x = Math.random() * canvas.width;
+        }
+        const currentAlpha = ap.alpha * (0.65 + 0.35 * Math.sin(ap.pulseAngle));
+        context.beginPath();
+        context.arc(ap.x, ap.y, ap.radius, 0, Math.PI * 2);
+        context.fillStyle = `rgba(52, 211, 153, ${currentAlpha})`;
+        context.shadowColor = '#10b981';
+        context.shadowBlur = 8;
+        context.fill();
+      }
+      context.restore();
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (!state.privateMode && state.showCameraFeed && cameraRunning && video.readyState >= 2) {
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.globalAlpha = 0.45;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      } else {
+        // Latar belakang premium permainan (Mod Privasi & Arcade)
+        const bgGrad = ctx.createRadialGradient(
+          canvas.width / 2, canvas.height / 2, 80,
+          canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.75
+        );
+        bgGrad.addColorStop(0, '#0c2e28');
+        bgGrad.addColorStop(0.55, '#061a17');
+        bgGrad.addColorStop(1, '#020b0a');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Zarah mikro lembut di latar belakang
+        drawAmbientBackground(ctx);
+      }
+
+      // Animasi gelombang kejutan cubitan (Pinch Shockwaves)
+      for (let i = pinchRipples.length - 1; i >= 0; i--) {
+        const rp = pinchRipples[i];
+        rp.r += 3.8;
+        rp.alpha -= 0.045;
+        if (rp.alpha <= 0 || rp.r >= rp.maxR) {
+          pinchRipples.splice(i, 1);
+        } else {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(245, 158, 11, ${rp.alpha})`;
+          ctx.lineWidth = rp.width;
+          ctx.shadowColor = '#f59e0b';
+          ctx.shadowBlur = 16;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      for (let i = 0; i < bubbles.length; i++) {
+        bubbles[i].update();
+        bubbles[i].draw(ctx);
+      }
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update();
+        particles[i].draw(ctx);
+        if (particles[i].alpha <= 0) {
+          particles.splice(i, 1);
+        }
+      }
+
+      drawHandSkeleton(ctx);
+      drawCursorReticle(ctx);
+      renderPreview();
+
+      requestAnimationFrame(animate);
+    }
+
+    /* =========================================================
+       12. PROFILE CATEGORY OPTIONS, ADD, EDIT & DELETE LISTENERS
+       ========================================================= */
+    const studentSelectDropdown = document.getElementById('student-select');
+    const profileNameInput = document.getElementById('profile-name-input');
+    const lblSelectProfile = document.getElementById('lbl-select-profile');
+    const profileStatusMsg = document.getElementById('profile-status-msg');
+    const btnAddProfile = document.getElementById('btn-add-profile');
+    const btnEditProfile = document.getElementById('btn-edit-profile');
+    const btnDelProfile = document.getElementById('btn-del-profile');
+    const btnResetProfile = document.getElementById('btn-reset-profile');
+
+    function setProfileStatus(msg, color = '#34d399') {
+      if (!profileStatusMsg) return;
+      profileStatusMsg.style.color = color;
+      profileStatusMsg.textContent = msg;
+    }
+
+    function populateProfileDropdown(selectedValue = '') {
+      studentSelectDropdown.innerHTML = '';
+
+      if (lblSelectProfile) lblSelectProfile.textContent = '👤 PILIH DARI SENARAI PEMAIN INDIVIDU:';
+      const list = getCustomList();
+      const defOpt = document.createElement('option');
+      defOpt.value = '';
+      defOpt.disabled = true;
+      defOpt.selected = !selectedValue;
+      defOpt.textContent = list.length > 0
+        ? `-- Pilih Nama Tersimpan (${list.length} Pemain) atau Taip Baharu di Bawah --`
+        : '-- Tiada Nama Tersimpan Lagi (Sila Taip Nama Anda di Bawah) --';
+      studentSelectDropdown.appendChild(defOpt);
+
+      list.forEach((name, idx) => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = `${idx + 1}. ${name}`;
+        if (selectedValue && name.toLowerCase() === selectedValue.toLowerCase()) {
+          opt.selected = true;
+        }
+        studentSelectDropdown.appendChild(opt);
+      });
+
+      if (selectedValue) {
+        profileNameInput.value = selectedValue;
+        state.currentPlayer = selectedValue;
+      }
+    }
+
+    // When dropdown selection changes, copy into editable input
+    studentSelectDropdown.addEventListener('change', () => {
+      if (studentSelectDropdown.value && !studentSelectDropdown.value.includes('Sila Pilih')) {
+        state.currentPlayer = studentSelectDropdown.value;
+        profileNameInput.value = studentSelectDropdown.value;
+        setProfileStatus(`✅ Pemain dipilih: "${studentSelectDropdown.value}". Anda boleh edit nama ini atau terus mula bermain!`, '#34d399');
+      }
+    });
+
+    // Add New Name Button
+    btnAddProfile.addEventListener('click', () => {
+      const rawName = profileNameInput.value.trim().toUpperCase();
+      if (!rawName) {
+        setProfileStatus('⚠️ Sila taip nama di dalam kotak teks terlebih dahulu sebelum menekan Tambah Nama!', '#fbbf24');
+        profileNameInput.focus();
+        return;
+      }
+
+      let list = getCustomList();
+      if (list.some(n => n.toLowerCase() === rawName.toLowerCase())) {
+        populateProfileDropdown(rawName);
+        setProfileStatus(`ℹ️ Nama "${rawName}" sudah ada dalam senarai dan telah dipilih!`, '#38bdf8');
+        return;
+      }
+      list.push(rawName);
+      saveCustomList(list);
+      populateProfileDropdown(rawName);
+      setProfileStatus(`🎉 Nama baharu "${rawName}" berjaya ditambah ke senarai pemain!`, '#34d399');
+    });
+
+    // Save Edited Name Button
+    btnEditProfile.addEventListener('click', () => {
+      const selectedOld = studentSelectDropdown.value;
+      const newName = profileNameInput.value.trim().toUpperCase();
+
+      if (!newName) {
+        setProfileStatus('⚠️ Ruangan nama tidak boleh kosong untuk disimpan!', '#fbbf24');
+        profileNameInput.focus();
+        return;
+      }
+
+      if (!selectedOld || selectedOld.includes('Sila Pilih')) {
+        btnAddProfile.click();
+        return;
+      }
+
+      let list = getCustomList();
+      const idx = list.findIndex(n => n.toLowerCase() === selectedOld.toLowerCase());
+      if (idx !== -1) {
+        list[idx] = newName;
+        saveCustomList(list);
+        renameInScoreboard(selectedOld, newName);
+        populateProfileDropdown(newName);
+        setProfileStatus(`✏️ Nama "${selectedOld}" telah dikemas kini kepada "${newName}"!`, '#fbbf24');
+      }
+    });
+
+    // Delete Selected Name Button
+    btnDelProfile.addEventListener('click', () => {
+      const selectedOld = studentSelectDropdown.value;
+      if (!selectedOld || selectedOld.includes('Sila Pilih')) {
+        profileNameInput.value = '';
+        setProfileStatus('ℹ️ Sila pilih nama daripada senarai di atas jika mahu memadamnya.', '#94a3b8');
+        return;
+      }
+
+      if (!confirm(`Adakah anda pasti mahu memadam nama "${selectedOld}" daripada senarai pilihan?`)) {
+        return;
+      }
+
+      let list = getCustomList().filter(n => n.toLowerCase() !== selectedOld.toLowerCase());
+      saveCustomList(list);
+      profileNameInput.value = '';
+      state.currentPlayer = '';
+      populateProfileDropdown('');
+      setProfileStatus(`🗑️ Nama "${selectedOld}" telah dipadamkan daripada senarai.`, '#f87171');
+    });
+
+    // Reset All Created / Edited Profile Names Button
+    if (btnResetProfile) {
+      btnResetProfile.addEventListener('click', () => {
+        if (!confirm("RESET SENARAI PEMAIN:\n\nAdakah anda pasti mahu memadamkan SEMUA nama pemain individu dalam senarai?")) return;
+
+        localStorage.removeItem(STORAGE_CUSTOM_LIST_KEY);
+
+        profileNameInput.value = '';
+        state.currentPlayer = '';
+        populateProfileDropdown('');
+        setProfileStatus('🔄 Senarai nama pemain telah dikosongkan!', '#c084fc');
+      });
+    }
+
+    // Scoreboard Filter Tabs
+    document.querySelectorAll('.sb-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.sb-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeScoreboardFilter = btn.getAttribute('data-sb-filter') || 'all';
+        renderScoreboardUI(state.currentPlayer);
+      });
+    });
+
+    // Topic Selection Option Listeners
+    const btnTopicPuasa = document.getElementById('btn-topic-puasa');
+
+    function applyTopicSelection(topicKey) {
+      if (!TOPIC_CONFIG[topicKey]) topicKey = 'puasa_t2';
+      activeTopic = topicKey;
+      localStorage.setItem('pi_bubble_active_topic', activeTopic);
+      const cfg = TOPIC_CONFIG[activeTopic];
+
+      if (btnTopicPuasa) btnTopicPuasa.classList.add('active');
+
+      const badgeEl = document.getElementById('start-badge-topic');
+      const titleEl = document.getElementById('start-game-title');
+      const descEl = document.getElementById('start-game-desc');
+      const qCatEl = document.getElementById('question-category');
+
+      if (badgeEl) badgeEl.textContent = cfg.badge;
+      if (titleEl) titleEl.textContent = cfg.title;
+      if (descEl) descEl.innerHTML = cfg.desc;
+      if (qCatEl && !state.isGameRunning) qCatEl.textContent = cfg.bannerHeader;
+      document.title = `Kuiz Tangkap Buih: ${cfg.title}`;
+    }
+
+    if (btnTopicPuasa) {
+      btnTopicPuasa.addEventListener('click', () => {
+        applyTopicSelection('bersih_suci');
+        setProfileStatus('🌙 Tajuk dipilih: Pendidikan Islam - Ibadat Puasa Benteng Diri (40 Soalan Lengkap).', '#34d399');
+      });
+    }
+
+    // Mode Toggle (Individu vs Kumpulan Tournament Battle)
+    const btnModeIndiv = document.getElementById('btn-mode-individual');
+    const btnModeGrp = document.getElementById('btn-mode-group');
+    const indivSelectionBox = document.getElementById('individual-selection-box');
+    const grpSelectionBox = document.getElementById('group-selection-box');
+    const ruleTitleTime = document.getElementById('rule-title-time');
+    const ruleDescTime = document.getElementById('rule-desc-time');
+    const ruleTitleMode = document.getElementById('rule-title-mode');
+    const ruleDescMode = document.getElementById('rule-desc-mode');
+
+    const groupSelectDropdown = document.getElementById('group-select');
+    const groupNameInput = document.getElementById('group-name-input');
+    const groupMembersTitle = document.getElementById('group-members-title');
+    const groupMembersList = document.getElementById('group-members-list');
+    const btnAddGroup = document.getElementById('btn-add-group');
+    const btnResetGroups = document.getElementById('btn-reset-groups');
+
+    function populateGroupDropdown(selectedVal = '') {
+      if (!groupSelectDropdown) return;
+      groupSelectDropdown.innerHTML = '';
+      const gList = getGroupsList();
+      gList.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g.name;
+        opt.textContent = `${g.icon || '⚔️'} ${g.name}`;
+        if (selectedVal && g.name.toLowerCase() === selectedVal.toLowerCase()) {
+          opt.selected = true;
+        }
+        groupSelectDropdown.appendChild(opt);
+      });
+
+      const currentChosen = selectedVal || (groupSelectDropdown.value || gList[0].name);
+      if (groupNameInput) groupNameInput.value = currentChosen;
+    }
+
+    function switchGameMode(mode) {
+      activeGameMode = mode;
+      state.gameMode = mode;
+
+      if (mode === 'group') {
+        if (btnModeGrp) btnModeGrp.classList.add('active');
+        if (btnModeIndiv) btnModeIndiv.classList.remove('active');
+        if (indivSelectionBox) indivSelectionBox.style.display = 'none';
+        if (grpSelectionBox) grpSelectionBox.style.display = 'block';
+
+        if (ruleTitleTime) ruleTitleTime.textContent = 'Masa 1:30 (90s)!';
+        if (ruleDescTime) ruleDescTime.textContent = 'Pusingan 1 minit 30 saat untuk pasukan!';
+        if (ruleTitleMode) ruleTitleMode.textContent = 'Giliran Ahli (Relay)';
+        if (ruleDescMode) ruleDescMode.textContent = 'Bergilir-gilir jawab 20 soalan untuk jadi Juara Kelas!';
+
+        populateGroupDropdown();
+        setProfileStatus('👥 Mod Kumpulan (Tournament Battle) aktif! 1 minit 30 saat setiap pusingan.', '#fbbf24');
+      } else {
+        if (btnModeIndiv) btnModeIndiv.classList.add('active');
+        if (btnModeGrp) btnModeGrp.classList.remove('active');
+        if (indivSelectionBox) indivSelectionBox.style.display = 'block';
+        if (grpSelectionBox) grpSelectionBox.style.display = 'none';
+
+        if (ruleTitleTime) ruleTitleTime.textContent = 'Masa 1 Minit (60s)!';
+        if (ruleDescTime) ruleDescTime.textContent = 'Masa berjalan terus untuk kesemua 20 soalan!';
+        if (ruleTitleMode) ruleTitleMode.textContent = 'TP Tertinggi';
+        if (ruleDescMode) ruleDescMode.textContent = 'Scoreboard simpan markah & TP paling tinggi anda!';
+
+        setProfileStatus('👤 Mod Individu aktif. Pilih nama murid daripada senarai.', '#34d399');
+      }
+    }
+
+    if (btnModeIndiv) {
+      btnModeIndiv.addEventListener('click', () => switchGameMode('individual'));
+    }
+    if (btnModeGrp) {
+      btnModeGrp.addEventListener('click', () => switchGameMode('group'));
+    }
+
+    if (groupSelectDropdown) {
+      groupSelectDropdown.addEventListener('change', () => {
+        const val = groupSelectDropdown.value;
+        if (groupNameInput) groupNameInput.value = val;
+      });
+    }
+
+    if (btnAddGroup) {
+      btnAddGroup.addEventListener('click', () => {
+        const customName = groupNameInput.value.trim().toUpperCase();
+        if (!customName) {
+          alert("Sila taip nama kumpulan terlebih dahulu!");
+          groupNameInput.focus();
+          return;
+        }
+        let gList = getGroupsList();
+        if (!gList.some(g => g.name.toLowerCase() === customName.toLowerCase())) {
+          gList.push({
+            id: 'g_' + Date.now(),
+            name: customName,
+            shortName: customName,
+            icon: '⚔️',
+            members: []
+          });
+          saveGroupsList(gList);
+          populateGroupDropdown(customName);
+          setProfileStatus(`🎉 Kumpulan baharu "${customName}" berjaya ditambah!`, '#fbbf24');
+        } else {
+          populateGroupDropdown(customName);
+        }
+      });
+    }
+
+    if (btnResetGroups) {
+      btnResetGroups.addEventListener('click', () => {
+        if (confirm("Adakah anda pasti mahu RESET senarai kumpulan kembali kepada 6 Pasukan Tokoh Islam asal?")) {
+          localStorage.removeItem(STORAGE_GROUPS_LIST_KEY);
+          populateGroupDropdown();
+          setProfileStatus("🔄 Senarai kumpulan telah di-reset kepada 6 Kumpulan Tokoh Islam asal!", '#fbbf24');
+        }
+      });
+    }
+
+    // Initialize topic (default puasa_t2), group mode (default group) & dropdown on load
+    applyTopicSelection('bersih_suci');
+    populateProfileDropdown('');
+    populateGroupDropdown();
+    switchGameMode('group');
+
+    document.getElementById('btn-start-game').addEventListener('click', startGame);
+    document.getElementById('btn-mouse-only').addEventListener('click', startGame);
+    document.getElementById('btn-restart').addEventListener('click', startGame);
+
+    document.getElementById('btn-switch-player').addEventListener('click', () => {
+      document.getElementById('modal-gameover').style.display = 'none';
+      document.getElementById('modal-start').style.display = 'flex';
+    });
+    document.getElementById('btn-restart-quick').addEventListener('click', () => {
+      state.isGameRunning = false;
+      if (state.globalTimer) clearInterval(state.globalTimer);
+      document.getElementById('modal-start').style.display = 'flex';
+    });
+
+    function openScoreboardModal(filter = '') {
+      if (filter) {
+        activeScoreboardFilter = filter;
+      } else if (activeGameMode === 'group' || state.gameMode === 'group') {
+        activeScoreboardFilter = 'group';
+      }
+      document.querySelectorAll('.sb-tab-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-sb-filter') === activeScoreboardFilter);
+      });
+      renderScoreboardUI(state.currentPlayer);
+      document.getElementById('modal-scoreboard').style.display = 'flex';
+    }
+
+    document.getElementById('btn-open-scoreboard').addEventListener('click', () => openScoreboardModal());
+    document.getElementById('btn-hud-scoreboard').addEventListener('click', () => openScoreboardModal());
+    document.getElementById('btn-gameover-scoreboard').addEventListener('click', () => openScoreboardModal(state.gameMode === 'group' ? 'group' : 'all'));
+
+    document.getElementById('btn-close-scoreboard').addEventListener('click', () => {
+      document.getElementById('modal-scoreboard').style.display = 'none';
+    });
+
+    document.getElementById('btn-reset-scoreboard').addEventListener('click', resetScoreboard);
+
+    function setPrivacyMode(isPrivate) {
+      state.privateMode = isPrivate;
+      state.showCameraFeed = !isPrivate;
+
+      const btnHud = document.getElementById('btn-toggle-cam');
+      const previewBox = document.getElementById('cam-preview-box');
+      const previewLabel = document.getElementById('cam-preview-label');
+      const btnPrivOn = document.getElementById('btn-privacy-on');
+      const btnPrivOff = document.getElementById('btn-privacy-off');
+
+      if (isPrivate) {
+        if (btnHud) {
+          btnHud.innerHTML = '🛡️ Mod Privasi';
+          btnHud.title = 'Mod Privasi Aktif: Muka tidak dipapar, hanya animasi pinch. Klik untuk tukar ke Mod Kamera.';
+          btnHud.style.background = 'rgba(6, 78, 59, 0.85)';
+          btnHud.style.borderColor = '#10b981';
+          btnHud.style.color = '#a7f3d0';
+        }
+        if (previewBox) {
+          previewBox.classList.remove('cam-mode');
+          previewBox.style.borderColor = 'rgba(16, 185, 129, 0.65)';
+        }
+        if (previewLabel) {
+          previewLabel.textContent = '🛡️ Sensor Privasi';
+          previewLabel.style.color = '#34d399';
+        }
+        if (btnPrivOn) btnPrivOn.classList.add('active');
+        if (btnPrivOff) btnPrivOff.classList.remove('active');
+      } else {
+        if (btnHud) {
+          btnHud.innerHTML = '📷 Mod Kamera';
+          btnHud.title = 'Mod Kamera Aktif: Memaparkan wajah pemain. Klik untuk aktifkan Mod Privasi.';
+          btnHud.style.background = 'rgba(15, 23, 42, 0.7)';
+          btnHud.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+          btnHud.style.color = '#ffffff';
+        }
+        if (previewBox) {
+          previewBox.classList.add('cam-mode');
+          previewBox.style.borderColor = 'rgba(56, 189, 248, 0.5)';
+        }
+        if (previewLabel) {
+          previewLabel.textContent = '📷 Kamera Aktif';
+          previewLabel.style.color = '#38bdf8';
+        }
+        if (btnPrivOn) btnPrivOn.classList.remove('active');
+        if (btnPrivOff) btnPrivOff.classList.add('active');
+      }
+    }
+
+    document.getElementById('btn-toggle-cam').addEventListener('click', () => {
+      setPrivacyMode(!state.privateMode);
+    });
+
+    const btnPrivOn = document.getElementById('btn-privacy-on');
+    const btnPrivOff = document.getElementById('btn-privacy-off');
+    if (btnPrivOn) btnPrivOn.addEventListener('click', () => setPrivacyMode(true));
+    if (btnPrivOff) btnPrivOff.addEventListener('click', () => setPrivacyMode(false));
+
+    // Initialize default privacy mode to TRUE on load
+    setPrivacyMode(false);
+
+    /* =========================================================
+       13. FULLSCREEN MODE IMPLEMENTATION
+       ========================================================= */
+    function toggleFullScreen() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        const elem = document.documentElement;
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen().catch(err => {
+            console.warn("Fullscreen request error:", err);
+          });
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(err => {
+            console.warn("Exit fullscreen error:", err);
+          });
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+    }
+
+    function updateFullscreenUI() {
+      const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      const hudBtn = document.getElementById('btn-toggle-fullscreen');
+      const modalBtn = document.getElementById('btn-modal-fullscreen');
+
+      if (hudBtn) {
+        hudBtn.innerHTML = isFS ? '🗗 Skrin Biasa' : '⛶ Fullscreen';
+        hudBtn.title = isFS ? 'Keluar Skrin Penuh (Tekan F atau Esc)' : 'Skrin Penuh (Tekan F)';
+      }
+      if (modalBtn) {
+        modalBtn.innerHTML = isFS ? '🗗 Keluar Skrin Penuh' : '⛶ Skrin Penuh (Full Screen)';
+      }
+      setTimeout(resizeCanvas, 100);
+    }
+
+    document.addEventListener('fullscreenchange', updateFullscreenUI);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenUI);
+
+    window.addEventListener('keydown', (e) => {
+      if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (document.activeElement && (document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+          return;
+        }
+        toggleFullScreen();
+      }
+    });
+
+    const btnToggleFs = document.getElementById('btn-toggle-fullscreen');
+    if (btnToggleFs) btnToggleFs.addEventListener('click', toggleFullScreen);
+
+    const btnModalFs = document.getElementById('btn-modal-fullscreen');
+    if (btnModalFs) btnModalFs.addEventListener('click', toggleFullScreen);
+
+    initWebcamAndAI();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
